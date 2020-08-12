@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 using Topos.Config;
+using System.Linq;
 
 
 namespace Datafordeler.DBIntegrator.Consumer
@@ -36,6 +37,7 @@ namespace Datafordeler.DBIntegrator.Consumer
 
         public void Start()
         {
+            List<JObject> list = new List<JObject>();
             _consumer = Configure
                .Consumer(_kafkaSetting.DatafordelereTopic, c => c.UseKafka(_kafkaSetting.Server))
                .Serialization(s => s.DatafordelerEventDeserializer())
@@ -47,17 +49,24 @@ namespace Datafordeler.DBIntegrator.Consumer
                    {
                        if (message.Body is JObject)
                        {
-                           await HandleSubscribedEvent((JObject)message.Body);
+                           //await HandleSubscribedEvent((JObject)message.Body);
+                           list.Add((JObject)message.Body);
+                           if(list.Count >= 100000)
+                           {
+                               await(HandleMessages(list));
+                               list.Clear();
+                           }
                        }
                    }
                }).Start();
 
         }
 
-        private async Task HandleSubscribedEvent(JObject eventObject)
+
+        private async Task HandleMessages(List<JObject> list)
         {
-            _logger.LogInformation("Recieved a message");
-            _databaseWriter.UpsertStuff("blabla");
+             _logger.LogInformation("Recieved a message");
+            _databaseWriter.UpsertData(list);
         }
 
         public void Dispose()
