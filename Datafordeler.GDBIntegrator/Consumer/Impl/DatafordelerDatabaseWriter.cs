@@ -38,39 +38,48 @@ namespace Datafordeler.DBIntegrator.Consumer
         public void Start()
         {
             List<JObject> list = new List<JObject>();
-            _consumer = Configure
-               .Consumer(_kafkaSetting.DatafordelereTopic, c => c.UseKafka(_kafkaSetting.Server))
-               .Serialization(s => s.DatafordelerEventDeserializer())
-               .Topics(t => t.Subscribe(_kafkaSetting.DatafordelereTopic))
-               .Positions(p => p.StoreInFileSystem(_kafkaSetting.PositionFilePath))
-               .Handle(async (messages, context, token) =>
-               {
-                   foreach (var message in messages)
+            var topics = _kafkaSetting.DatafordelereTopic.Split(",");
+            Console.WriteLine("This is one topic" + topics[0]);
+            //Console.WriteLine("This is the second topic " + topics[1]);
+            foreach (var topic in topics)
+            {
+                _consumer = Configure
+                   .Consumer(_kafkaSetting.DatafordelereTopic, c => c.UseKafka(_kafkaSetting.Server))
+                   .Serialization(s => s.DatafordelerEventDeserializer())
+                   .Topics(t => t.Subscribe(topic))
+                   .Positions(p => p.StoreInFileSystem(_kafkaSetting.PositionFilePath))
+                   .Handle(async (messages, context, token) =>
                    {
-                       if (message.Body is JObject)
-                       {
-                           //await HandleSubscribedEvent((JObject)message.Body);
-                           list.Add((JObject)message.Body);
-                           if(list.Count >= 100000)
+                       
+                           foreach (var message in messages)
                            {
-                               await(HandleMessages(list));
-                               list.Clear();
+                               if (message.Body is JObject)
+                               {
+                               //await HandleSubscribedEvent((JObject)message.Body);
+                               list.Add((JObject)message.Body);
+                                   if (list.Count >= 10000)
+                                   {
+                                       await (HandleMessages(list, topic));
+                                       list.Clear();
+                                   }
+                               }
                            }
-                       }
-                   }
-               }).Start();
-
+                    
+                   }).Start();
+            }
         }
 
 
-        private async Task HandleMessages(List<JObject> list)
+        private async Task HandleMessages(List<JObject> list,string topic)
         {
              _logger.LogInformation("Recieved a message");
-            _databaseWriter.UpsertData(list);
+            _databaseWriter.UpsertData(list,topic);
+            //Console.WriteLine("THis is the topic" +_kafkaSetting.DatafordelereTopic);
         }
 
         public void Dispose()
         {
+
         }
     }
 }

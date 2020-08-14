@@ -14,35 +14,54 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
     {
         private readonly ILogger<MSSQLWriter> _logger;
         private readonly DatabaseSetting _databaseSetting;
+        private readonly KafkaSetting _kafkaSetting;
 
         public MSSQLWriter(
             ILogger<MSSQLWriter> logger,
-            IOptions<DatabaseSetting> databaseSetting
+            IOptions<DatabaseSetting> databaseSetting,
+            IOptions<KafkaSetting> kafkaSetting
             )
         {
             _logger = logger;
             _databaseSetting = databaseSetting.Value;
+           _kafkaSetting = kafkaSetting.Value;
         }
 
-        public void UpsertData(List<JObject> batch)
+        public void UpsertData(List<JObject> batch, string topic)
         {
             //_logger.LogDebug("I wrote some stuff: " + data);
             string connectionString;
-            SqlConnection cnn ;
+            SqlConnection cnn;
             SqlCommand command;
             cnn = new SqlConnection(_databaseSetting.ConnectionString);
-            using(SqlConnection connection = new SqlConnection(_databaseSetting.ConnectionString))
+            using (SqlConnection connection = new SqlConnection(_databaseSetting.ConnectionString))
             {
                 connection.Open();
-                using (SqlCommand command1 = connection.CreateCommand())
+                if (topic == "AdresseList")
                 {
-                    command1.CommandText="dbo.UpsertAdress";
-                    command1.CommandType = CommandType.StoredProcedure;
+                    using (SqlCommand command1 = connection.CreateCommand())
+                    {
+                        command1.CommandText = "dbo.UpsertAdress";
+                        command1.CommandType = CommandType.StoredProcedure;
 
-                    SqlParameter parameter = command1.Parameters.AddWithValue("@UpdateRecords",CreateDataTable(batch));
-                    parameter.SqlDbType = SqlDbType.Structured;
-                    parameter.TypeName = "dbo.adressTable1";
-                    command1.ExecuteNonQuery();
+                        SqlParameter parameter = command1.Parameters.AddWithValue("@UpdateRecords", CreateDataTable(batch));
+                        parameter.SqlDbType = SqlDbType.Structured;
+                        parameter.TypeName = "dbo.adressTable";
+                        command1.ExecuteNonQuery();
+                    }
+                }
+                else
+                {
+                    using (SqlCommand command1 = connection.CreateCommand())
+                    {
+                        command1.CommandText = "dbo.UpsertAdressPunk";
+                        command1.CommandType = CommandType.StoredProcedure;
+
+                        SqlParameter parameter = command1.Parameters.AddWithValue("@UpdateRecords", CreateAdresspunkable(batch));
+                        parameter.SqlDbType = SqlDbType.Structured;
+                        parameter.TypeName = "dbo.AdressPunktTable";
+                        command1.ExecuteNonQuery();
+                    }
                 }
             }
             cnn.Close();
@@ -53,21 +72,31 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             DataTable tbl = new DataTable();
             tbl.Columns.Add(new DataColumn("ID",typeof(string)));
             tbl.Columns.Add(new DataColumn("UnitAdressDescription",typeof(string)));
-            tbl.Columns.Add(new DataColumn("Door",typeof(string)));
-            tbl.Columns.Add(new DataColumn("Floor",typeof(string)));
-            tbl.Columns.Add(new DataColumn("HouseNumber",typeof(string)));
 
             foreach(var obj in batch )
             {
                 DataRow dr = tbl.NewRow();
                 dr["ID"] = obj["id_lokalId"];
                 dr["UnitAdressDescription"] = obj["unitAddressDescription"];
-                dr["Door"] = obj["door"];
-                dr["Floor"] = obj["floor"];
-                dr["HouseNumber"] = obj["houseNumber"];
                 tbl.Rows.Add(dr);
             }
 
+            return tbl;
+        }
+
+        public DataTable CreateAdresspunkable(List<JObject> batch )
+        {
+            DataTable tbl = new DataTable();
+            tbl.Columns.Add(new DataColumn("ID",typeof(string)));
+            tbl.Columns.Add(new DataColumn("status",typeof(string)));
+
+            foreach(var obj in batch)
+            {
+                DataRow dr = tbl.NewRow();
+                dr["ID"] = obj["id_lokalId"];
+                dr["status"]=obj["status"];
+                tbl.Rows.Add(dr);
+            }
             return tbl;
         }
     }
