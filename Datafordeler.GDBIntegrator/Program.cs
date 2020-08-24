@@ -67,6 +67,7 @@ namespace Datafordeler.DBIntegrator
                 services.Configure<DatabaseSetting>(databaseSettings =>
                                                hostContext.Configuration.GetSection("Database").Bind(databaseSettings));
 
+
                 services.AddLogging();
                 services.AddSingleton<IDatafordelerConsumer, DatafordelereDatabaseWriter>();
                 services.AddSingleton<IDatabaseWriter, MSSQLWriter>();

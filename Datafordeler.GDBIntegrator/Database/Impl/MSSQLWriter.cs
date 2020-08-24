@@ -24,10 +24,10 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
         {
             _logger = logger;
             _databaseSetting = databaseSetting.Value;
-           _kafkaSetting = kafkaSetting.Value;
+            _kafkaSetting = kafkaSetting.Value;
         }
 
-        public void UpsertData(List<JObject> batch, string topic)
+        public void UpsertData(List<JObject> batch, string topic, string[] columns)
         {
             //_logger.LogDebug("I wrote some stuff: " + data);
             string connectionString;
@@ -37,64 +37,38 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             using (SqlConnection connection = new SqlConnection(_databaseSetting.ConnectionString))
             {
                 connection.Open();
-                if (topic == "AdresseList")
-                {
-                    using (SqlCommand command1 = connection.CreateCommand())
-                    {
-                        command1.CommandText = "dbo.UpsertAdress";
-                        command1.CommandType = CommandType.StoredProcedure;
 
-                        SqlParameter parameter = command1.Parameters.AddWithValue("@UpdateRecords", CreateDataTable(batch));
-                        parameter.SqlDbType = SqlDbType.Structured;
-                        parameter.TypeName = "dbo.adressTable";
-                        command1.ExecuteNonQuery();
-                    }
-                }
-                else
+                using (SqlCommand command1 = connection.CreateCommand())
                 {
-                    using (SqlCommand command1 = connection.CreateCommand())
-                    {
-                        command1.CommandText = "dbo.UpsertAdressPunk";
-                        command1.CommandType = CommandType.StoredProcedure;
 
-                        SqlParameter parameter = command1.Parameters.AddWithValue("@UpdateRecords", CreateAdresspunkable(batch));
-                        parameter.SqlDbType = SqlDbType.Structured;
-                        parameter.TypeName = "dbo.AdressPunktTable";
-                        command1.ExecuteNonQuery();
-                    }
+                    command1.CommandText = "dbo.Upsert" + topic;
+                    command1.CommandType = CommandType.StoredProcedure;
+
+                    SqlParameter parameter = command1.Parameters.AddWithValue("@UpdateRecords", CreateDataTable(batch, columns));
+                    parameter.SqlDbType = SqlDbType.Structured;
+                    parameter.TypeName = "dbo.Table" + topic;
+                    command1.ExecuteNonQuery();
                 }
+
             }
             cnn.Close();
         }
 
-        public  DataTable CreateDataTable(List<JObject> batch )
+        public DataTable CreateDataTable(List<JObject> batch, string[] columns)
         {
             DataTable tbl = new DataTable();
-            tbl.Columns.Add(new DataColumn("ID",typeof(string)));
-            tbl.Columns.Add(new DataColumn("UnitAdressDescription",typeof(string)));
-
-            foreach(var obj in batch )
+            foreach (var column in columns)
             {
-                DataRow dr = tbl.NewRow();
-                dr["ID"] = obj["id_lokalId"];
-                dr["UnitAdressDescription"] = obj["unitAddressDescription"];
-                tbl.Rows.Add(dr);
+                tbl.Columns.Add(new DataColumn(column, typeof(string)));
             }
 
-            return tbl;
-        }
-
-        public DataTable CreateAdresspunkable(List<JObject> batch )
-        {
-            DataTable tbl = new DataTable();
-            tbl.Columns.Add(new DataColumn("ID",typeof(string)));
-            tbl.Columns.Add(new DataColumn("status",typeof(string)));
-
-            foreach(var obj in batch)
+            foreach (var obj in batch)
             {
                 DataRow dr = tbl.NewRow();
-                dr["ID"] = obj["id_lokalId"];
-                dr["status"]=obj["status"];
+                foreach (var col in columns)
+                {
+                    dr[col] = obj[col];
+                }
                 tbl.Rows.Add(dr);
             }
             return tbl;

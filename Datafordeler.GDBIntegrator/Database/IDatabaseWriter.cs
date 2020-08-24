@@ -9,7 +9,7 @@ namespace Datafordeler.GDBIntegrator.Database
 {
     public interface IDatabaseWriter
     {
-        void UpsertData(List<JObject> batch, string topic);
-        DataTable CreateDataTable(List<JObject> batch );
+        void UpsertData(List<JObject> batch, string topic,string[] columns);
+        DataTable CreateDataTable(List<JObject> batch, string[] columns );
     }
 }

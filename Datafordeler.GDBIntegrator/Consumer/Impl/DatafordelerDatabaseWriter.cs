@@ -20,6 +20,7 @@ namespace Datafordeler.DBIntegrator.Consumer
         private readonly ILogger<DatafordelereDatabaseWriter> _logger;
         private readonly KafkaSetting _kafkaSetting;
         private readonly DatabaseSetting _databaseSetting;
+
         private readonly IDatabaseWriter _databaseWriter;
 
         public DatafordelereDatabaseWriter(
@@ -39,41 +40,50 @@ namespace Datafordeler.DBIntegrator.Consumer
         {
             List<JObject> list = new List<JObject>();
             var topics = _kafkaSetting.DatafordelereTopic.Split(",");
-            Console.WriteLine("This is one topic" + topics[0]);
+            var server = _kafkaSetting.Server;
+            var kafka = _kafkaSetting.Values;
+            //Console.WriteLine("This is one topic" + topics[0]);
             //Console.WriteLine("This is the second topic " + topics[1]);
-            foreach (var topic in topics)
+            if (kafka != null)
             {
-                _consumer = Configure
-                   .Consumer(_kafkaSetting.DatafordelereTopic, c => c.UseKafka(_kafkaSetting.Server))
-                   .Serialization(s => s.DatafordelerEventDeserializer())
-                   .Topics(t => t.Subscribe(topic))
-                   .Positions(p => p.StoreInFileSystem(_kafkaSetting.PositionFilePath))
-                   .Handle(async (messages, context, token) =>
-                   {
-                       
+
+                foreach (var obj in kafka)
+                {
+                    var topic = obj.Key;
+                    var columns = obj.Value.Split(",");
+                    _consumer = Configure
+                       .Consumer(topic, c => c.UseKafka(_kafkaSetting.Server))
+                       .Serialization(s => s.DatafordelerEventDeserializer())
+                       .Topics(t => t.Subscribe(topic))
+                       .Positions(p => p.StoreInFileSystem(_kafkaSetting.PositionFilePath))
+                       .Handle(async (messages, context, token) =>
+                       {
+
                            foreach (var message in messages)
                            {
                                if (message.Body is JObject)
                                {
                                //await HandleSubscribedEvent((JObject)message.Body);
                                list.Add((JObject)message.Body);
-                                   if (list.Count >= 10000)
+                                   if (list.Count >= 100)
                                    {
-                                       await (HandleMessages(list, topic));
+                                       await (HandleMessages(list, topic, columns));
                                        list.Clear();
                                    }
                                }
                            }
-                    
-                   }).Start();
+
+                       }).Start();
+                }
             }
+
         }
 
 
-        private async Task HandleMessages(List<JObject> list,string topic)
+        private async Task HandleMessages(List<JObject> list,string topic,string[] columns)
         {
-             _logger.LogInformation("Recieved a message");
-            _databaseWriter.UpsertData(list,topic);
+             //_logger.LogInformation("Recieved a message");
+            _databaseWriter.UpsertData(list,topic,columns);
             //Console.WriteLine("THis is the topic" +_kafkaSetting.DatafordelereTopic);
         }
 
