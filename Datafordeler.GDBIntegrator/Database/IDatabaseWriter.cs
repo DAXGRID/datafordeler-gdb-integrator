@@ -11,5 +11,7 @@ namespace Datafordeler.GDBIntegrator.Database
     {
         void UpsertData(List<JObject> batch, string topic,string[] columns);
         DataTable CreateDataTable(List<JObject> batch, string[] columns );
+
+        List<JObject> checkLatestData(List<JObject> batch);
     }
 }
