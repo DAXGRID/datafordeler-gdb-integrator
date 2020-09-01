@@ -13,5 +13,7 @@ namespace Datafordeler.GDBIntegrator.Database
         DataTable CreateDataTable(List<JObject> batch, string[] columns );
 
         List<JObject> checkLatestData(List<JObject> batch);
+
+        List<JObject> checkLatestDataDuplicates(List<JObject> batch);
     }
 }
