@@ -15,5 +15,7 @@ namespace Datafordeler.GDBIntegrator.Database
         List<JObject> checkLatestData(List<JObject> batch);
 
         List<JObject> checkLatestDataDuplicates(List<JObject> batch);
+
+        void createTable(string topic, string[] columns);
     }
 }

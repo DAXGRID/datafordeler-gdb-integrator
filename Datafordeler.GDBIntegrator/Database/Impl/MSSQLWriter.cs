@@ -8,6 +8,7 @@ using System.Data.SqlClient;
 using System.Data;
 using Newtonsoft.Json.Linq;
 using System.Linq;
+using NetTopologySuite.Geometries;
 
 namespace Datafordeler.GDBIntegrator.Database.Impl
 {
@@ -38,10 +39,6 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             batch.Add(rss1);
             */
             //_logger.LogDebug("I wrote some stuff: " + data);
-            string connectionString;
-            SqlConnection cnn;
-            SqlCommand command;
-            cnn = new SqlConnection(_databaseSetting.ConnectionString);
             var list = checkLatestDataDuplicates(batch);
             using (SqlConnection connection = new SqlConnection(_databaseSetting.ConnectionString))
             {
@@ -51,16 +48,20 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 {
 
                     command1.CommandText = "dbo.Upsert" + topic;
+                    //command1.CommandText = "[dbo].[BulkInsertFromWKT]";
+                
                     command1.CommandType = CommandType.StoredProcedure;
 
                     SqlParameter parameter = command1.Parameters.AddWithValue("@UpdateRecords", CreateDataTable(list, columns));
                     parameter.SqlDbType = SqlDbType.Structured;
                     parameter.TypeName = "dbo.Table" + topic;
+                    //parameter.TypeName = "[dbo].[WKT_Example]";
                     command1.ExecuteNonQuery();
                 }
 
+                connection.Close();
+
             }
-            cnn.Close();
         }
 
         public DataTable CreateDataTable(List<JObject> batch, string[] columns)
@@ -68,14 +69,10 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             DataTable tbl = new DataTable();
             foreach (var column in columns)
             {
-                if (column == "registrationFrom" | column == "registrationTo" | column == "effectFrom" | column == "effectTo")
-                {
-                    tbl.Columns.Add(new DataColumn(column, typeof(DateTime)));
-                }
-                else
-                {
-                    tbl.Columns.Add(new DataColumn(column, typeof(string)));
-                }
+            
+                
+                tbl.Columns.Add(new DataColumn(column, typeof(string)));
+               
 
             }
 
@@ -87,7 +84,6 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                     if ((string)obj[col] != "null")
                     {
                         dr[col] = obj[col];
-                        Console.WriteLine(obj.ToString());
                     }
 
                 }
@@ -177,28 +173,28 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                     if (registrationFrom < itemRegistrationFrom)
                     {
                         dictionary[item["id_lokalId"].ToString()] = item;
-                        Console.WriteLine("This is the registration from " + item);
+                       
                     }
                     else if (registrationFrom == itemRegistrationFrom)
                     {
                         if (registrationTo < itemRegistrationTo)
                         {
                             dictionary[item["id_lokalId"].ToString()] = item;
-                            Console.WriteLine("This is the registration to " + item);
+                            
                         }
                         else if (registrationTo == itemRegistrationTo)
                         {
                             if (effectFrom < itemEffectFrom)
                             {
                                 dictionary[item["id_lokalId"].ToString()] = item;
-                                Console.WriteLine("This is the effect from " + item);
+                             
                             }
                             else if (effectFrom == itemEffectFrom)
                             {
                                 if (effectTo < itemEffectTo)
                                 {
                                     dictionary[item["id_lokalId"].ToString()] = item;
-                                    Console.WriteLine("This is the effect to " + item);
+                                   
                                 }
                             }
                         }
@@ -220,5 +216,38 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             return list;
 
         }
+
+         public void createTable(string topic, string[] columns)
+        {
+            using (SqlConnection connection = new SqlConnection(_databaseSetting.ConnectionString))
+            {
+                StringBuilder mystringBuilder = new StringBuilder();
+
+
+                foreach (var column in columns)
+                {
+                    if (column == "id_lokalId")
+                    {
+                        mystringBuilder.Append(column + " varchar(900)" + ",");
+                    }
+                    else if (column == "position")
+                    {
+                        mystringBuilder.Append(column + " geometry" + ",");
+                    }
+                    else
+                    {
+                        mystringBuilder.Append(column + " varchar(max)" + ",");
+                    }
+                }
+                mystringBuilder = mystringBuilder.Remove(mystringBuilder.Length - 1,1);
+                string commandText = "Create table " + topic + "(" + mystringBuilder +  ")";
+                SqlCommand command = new SqlCommand(commandText, connection);
+                Console.WriteLine(mystringBuilder);
+                connection.Open();
+                command.ExecuteNonQuery();
+                connection.Close();
+            }
+        }
+
     }
 }

@@ -65,7 +65,7 @@ namespace Datafordeler.DBIntegrator.Consumer
                                {
                                //await HandleSubscribedEvent((JObject)message.Body);
                                list.Add((JObject)message.Body);
-                                   if (list.Count >= 10000)
+                                   if (list.Count >= 100)
                                    {
                                        await (HandleMessages(list, topic, columns));
                                        list.Clear();
