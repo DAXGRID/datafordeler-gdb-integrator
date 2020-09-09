@@ -221,8 +221,10 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
         {
             using (SqlConnection connection = new SqlConnection(_databaseSetting.ConnectionString))
             {
-                StringBuilder mystringBuilder = new StringBuilder();
+                connection.Open();
 
+                StringBuilder mystringBuilder = new StringBuilder();
+                 
 
                 foreach (var column in columns)
                 {
@@ -240,11 +242,106 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                     }
                 }
                 mystringBuilder = mystringBuilder.Remove(mystringBuilder.Length - 1,1);
-                string commandText = "Create table " + topic + "(" + mystringBuilder +  ")";
-                SqlCommand command = new SqlCommand(commandText, connection);
-                Console.WriteLine(mystringBuilder);
+                string tableCommandText = "Create table " + topic + "(" + mystringBuilder +  ")";
+                string typeComandText = "Create type " + "table" +  topic +  " As table " +  "(" + mystringBuilder +  ")";
+
+                using(SqlCommand command = new SqlCommand(tableCommandText, connection))
+                {
+                    command.ExecuteNonQuery();
+                }
+
+                using (SqlCommand command1 = new SqlCommand(typeComandText,connection))
+                {
+                    command1.ExecuteNonQuery();
+                }
+              
+                
+                connection.Close();
+            }
+        }
+
+         public  void createType(string topic, string [] columns)
+        {
+            using(SqlConnection connection = new SqlConnection(_databaseSetting.ConnectionString) )
+            {
+                StringBuilder mystringBuilder = new StringBuilder();
+
+                foreach (var column in columns)
+                {
+                    if (column == "id_lokalId")
+                    {
+                        mystringBuilder.Append(column + " varchar(900)" + ",");
+                    }
+                    else
+                    {
+                        mystringBuilder.Append(column + " varchar(max)" + ",");
+                    }
+                }
+
+                mystringBuilder = mystringBuilder.Remove(mystringBuilder.Length - 1, 1);
+                string commandText = "Create type " + "table" + topic + " As table " + "(" + mystringBuilder + ")";
+
                 connection.Open();
-                command.ExecuteNonQuery();
+
+                using(SqlCommand command = new SqlCommand(commandText, connection))
+                {
+                    command.ExecuteNonQuery();
+                }
+
+                connection.Close();
+            }
+        }
+
+        public  void createStoredProcedure(string topic, string [] columns)
+        {
+            using(SqlConnection connection =  new SqlConnection(_databaseSetting.ConnectionString))
+            {
+                connection.Open();
+
+                StringBuilder matchedRecordString = new StringBuilder();
+                StringBuilder tableColumns = new StringBuilder();
+                StringBuilder sourceColumns = new StringBuilder();
+
+                foreach(var col in columns)
+                {
+                    if(col == "position")
+                    {
+                        matchedRecordString.Append("Target."+col+ "="+"geometry::STGeomFromText(Source."+col+",4326),");
+                        sourceColumns.Append("geometry::STGeomFromText(Source."+col+",4326),");
+                        tableColumns.Append(col+",");
+                    }
+                    else
+                    {
+                        matchedRecordString.Append("Target."+col+"="+"Source."+col+",");
+                        sourceColumns.Append("Source."+col+",");
+                        tableColumns.Append(col+",");
+                    }
+
+
+                }
+                matchedRecordString = matchedRecordString.Remove(matchedRecordString.Length - 1,1);
+                sourceColumns = sourceColumns.Remove(sourceColumns.Length - 1,1);
+                tableColumns = tableColumns.Remove(tableColumns.Length - 1,1);
+
+
+
+                string commandText = "CREATE PROCEDURE " + "dbo.Upsert" + topic 
+                + " @UpdateRecords " + "dbo.Table" + topic + " READONLY " 
+                + "AS BEGIN " 
+                + "MERGE INTO " + topic + " AS Target " 
+                + "Using @UpdateRecords AS Source " 
+                + "On Target.id_lokalId = Source.id_lokalId WHEN MATCHED THEN "  
+                + "UPDATE SET "  + matchedRecordString
+                + " WHEN NOT MATCHED THEN " 
+                + "INSERT " + "(" + tableColumns + ")"
+                + "Values " +  "(" + sourceColumns + "); " 
+                + "END";
+                
+              using(SqlCommand command = new SqlCommand(commandText, connection))
+                {
+                    command.ExecuteNonQuery();
+                }
+
                 connection.Close();
             }
         }
