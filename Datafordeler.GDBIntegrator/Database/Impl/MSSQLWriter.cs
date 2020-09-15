@@ -29,7 +29,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             _kafkaSetting = kafkaSetting.Value;
         }
 
-        public void UpsertData(List<JObject> batch, string topic, string[] columns)
+        public void AddToSql(List<JObject> batch, string topic, string[] columns)
         {
             /*
             JObject rss = new JObject(new JProperty("id_lokalId","1"), new JProperty("unitAddressDescription","ccc"));
@@ -39,7 +39,26 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             batch.Add(rss1);
             */
             //_logger.LogDebug("I wrote some stuff: " + data);
+
+            if (checkTable(topic) == false)
+            {
+                createTable(topic, columns);
+                createType(topic, columns);
+                createStoredProcedure(topic, columns);
+                UpsertData(batch,topic,columns);
+
+
+            }
+            else
+            {
+                UpsertData(batch,topic,columns);
+            }
+        }
+
+        public void UpsertData(List<JObject> batch, string topic, string[] columns)
+        {
             var list = checkLatestDataDuplicates(batch);
+            Console.WriteLine("This is the number of items inside the loop " + list.Count);
             using (SqlConnection connection = new SqlConnection(_databaseSetting.ConnectionString))
             {
                 connection.Open();
@@ -49,7 +68,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
 
                     command1.CommandText = "dbo.Upsert" + topic;
                     //command1.CommandText = "[dbo].[BulkInsertFromWKT]";
-                
+
                     command1.CommandType = CommandType.StoredProcedure;
 
                     SqlParameter parameter = command1.Parameters.AddWithValue("@UpdateRecords", CreateDataTable(list, columns));
@@ -69,10 +88,10 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             DataTable tbl = new DataTable();
             foreach (var column in columns)
             {
-            
-                
+
+
                 tbl.Columns.Add(new DataColumn(column, typeof(string)));
-               
+
 
             }
 
@@ -119,14 +138,14 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 {
                     //Set the time variables 
                     DateTime registrationFrom = DateTime.MinValue;
-                    DateTime itemRegistrationFrom= DateTime.MinValue;
-                    DateTime registrationTo= DateTime.MinValue;
-                    DateTime itemRegistrationTo= DateTime.MinValue;
+                    DateTime itemRegistrationFrom = DateTime.MinValue;
+                    DateTime registrationTo = DateTime.MinValue;
+                    DateTime itemRegistrationTo = DateTime.MinValue;
                     DateTime effectFrom = DateTime.MinValue;
                     DateTime itemEffectFrom = DateTime.MinValue;
                     DateTime effectTo = DateTime.MinValue;
                     DateTime itemEffectTo = DateTime.MinValue;
-                    
+
                     //Check if it contains the null string 
                     if (jobject["registrationFrom"].ToString() != "null") // string.IsNullOrEmpty if on .NET pre 4.0
                     {
@@ -158,7 +177,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                         itemEffectFrom = DateTime.Parse(item["effectFrom"].ToString());
                     }
 
-                     if (jobject["effectTo"].ToString() != "null") // string.IsNullOrEmpty if on .NET pre 4.0
+                    if (jobject["effectTo"].ToString() != "null") // string.IsNullOrEmpty if on .NET pre 4.0
                     {
                         effectTo = DateTime.Parse(jobject["effectTo"].ToString());
                     }
@@ -173,28 +192,28 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                     if (registrationFrom < itemRegistrationFrom)
                     {
                         dictionary[item["id_lokalId"].ToString()] = item;
-                       
+
                     }
                     else if (registrationFrom == itemRegistrationFrom)
                     {
                         if (registrationTo < itemRegistrationTo)
                         {
                             dictionary[item["id_lokalId"].ToString()] = item;
-                            
+
                         }
                         else if (registrationTo == itemRegistrationTo)
                         {
                             if (effectFrom < itemEffectFrom)
                             {
                                 dictionary[item["id_lokalId"].ToString()] = item;
-                             
+
                             }
                             else if (effectFrom == itemEffectFrom)
                             {
                                 if (effectTo < itemEffectTo)
                                 {
                                     dictionary[item["id_lokalId"].ToString()] = item;
-                                   
+
                                 }
                             }
                         }
@@ -217,14 +236,14 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
 
         }
 
-         public void createTable(string topic, string[] columns)
+        public void createTable(string topic, string[] columns)
         {
             using (SqlConnection connection = new SqlConnection(_databaseSetting.ConnectionString))
             {
                 connection.Open();
 
                 StringBuilder mystringBuilder = new StringBuilder();
-                 
+
 
                 foreach (var column in columns)
                 {
@@ -232,37 +251,33 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                     {
                         mystringBuilder.Append(column + " varchar(900)" + ",");
                     }
-                    else if (column == "position")
+                    else if (column == "position" | column == "roadRegistrationRoadLine")
                     {
                         mystringBuilder.Append(column + " geometry" + ",");
+                        Console.WriteLine(mystringBuilder);
                     }
                     else
                     {
                         mystringBuilder.Append(column + " varchar(max)" + ",");
                     }
                 }
-                mystringBuilder = mystringBuilder.Remove(mystringBuilder.Length - 1,1);
-                string tableCommandText = "Create table " + topic + "(" + mystringBuilder +  ")";
-                string typeComandText = "Create type " + "table" +  topic +  " As table " +  "(" + mystringBuilder +  ")";
+                mystringBuilder = mystringBuilder.Remove(mystringBuilder.Length - 1, 1);
+                string tableCommandText = "Create table " + topic + " (" + mystringBuilder + " CONSTRAINT PK_" + topic + " PRIMARY KEY(id_lokalId)" + ")";
 
-                using(SqlCommand command = new SqlCommand(tableCommandText, connection))
+                using (SqlCommand command = new SqlCommand(tableCommandText, connection))
                 {
                     command.ExecuteNonQuery();
                 }
 
-                using (SqlCommand command1 = new SqlCommand(typeComandText,connection))
-                {
-                    command1.ExecuteNonQuery();
-                }
-              
-                
+
+
                 connection.Close();
             }
         }
 
-         public  void createType(string topic, string [] columns)
+        public void createType(string topic, string[] columns)
         {
-            using(SqlConnection connection = new SqlConnection(_databaseSetting.ConnectionString) )
+            using (SqlConnection connection = new SqlConnection(_databaseSetting.ConnectionString))
             {
                 StringBuilder mystringBuilder = new StringBuilder();
 
@@ -279,11 +294,11 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 }
 
                 mystringBuilder = mystringBuilder.Remove(mystringBuilder.Length - 1, 1);
-                string commandText = "Create type " + "table" + topic + " As table " + "(" + mystringBuilder + ")";
+                string commandText = "Create type " + "table" + topic + " As table " + " (" + mystringBuilder + ")";
 
                 connection.Open();
 
-                using(SqlCommand command = new SqlCommand(commandText, connection))
+                using (SqlCommand command = new SqlCommand(commandText, connection))
                 {
                     command.ExecuteNonQuery();
                 }
@@ -292,9 +307,9 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             }
         }
 
-        public  void createStoredProcedure(string topic, string [] columns)
+        public void createStoredProcedure(string topic, string[] columns)
         {
-            using(SqlConnection connection =  new SqlConnection(_databaseSetting.ConnectionString))
+            using (SqlConnection connection = new SqlConnection(_databaseSetting.ConnectionString))
             {
                 connection.Open();
 
@@ -302,47 +317,98 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 StringBuilder tableColumns = new StringBuilder();
                 StringBuilder sourceColumns = new StringBuilder();
 
-                foreach(var col in columns)
+                foreach (var col in columns)
                 {
-                    if(col == "position")
+                    if (col == "position" | col == "roadRegistrationRoadLine")
                     {
-                        matchedRecordString.Append("Target."+col+ "="+"geometry::STGeomFromText(Source."+col+",4326),");
-                        sourceColumns.Append("geometry::STGeomFromText(Source."+col+",4326),");
-                        tableColumns.Append(col+",");
+                        matchedRecordString.Append("Target." + col + "=" + "geometry::STGeomFromText(Source." + col + ",4326),");
+                        sourceColumns.Append("geometry::STGeomFromText(Source." + col + ",4326),");
+                        tableColumns.Append(col + ",");
                     }
                     else
                     {
-                        matchedRecordString.Append("Target."+col+"="+"Source."+col+",");
-                        sourceColumns.Append("Source."+col+",");
-                        tableColumns.Append(col+",");
+                        matchedRecordString.Append("Target." + col + "=" + "Source." + col + ",");
+                        sourceColumns.Append("Source." + col + ",");
+                        tableColumns.Append(col + ",");
                     }
 
 
                 }
-                matchedRecordString = matchedRecordString.Remove(matchedRecordString.Length - 1,1);
-                sourceColumns = sourceColumns.Remove(sourceColumns.Length - 1,1);
-                tableColumns = tableColumns.Remove(tableColumns.Length - 1,1);
+                matchedRecordString = matchedRecordString.Remove(matchedRecordString.Length - 1, 1);
+                sourceColumns = sourceColumns.Remove(sourceColumns.Length - 1, 1);
+                tableColumns = tableColumns.Remove(tableColumns.Length - 1, 1);
 
 
 
-                string commandText = "CREATE PROCEDURE " + "dbo.Upsert" + topic 
-                + " @UpdateRecords " + "dbo.Table" + topic + " READONLY " 
-                + "AS BEGIN " 
-                + "MERGE INTO " + topic + " AS Target " 
-                + "Using @UpdateRecords AS Source " 
-                + "On Target.id_lokalId = Source.id_lokalId WHEN MATCHED THEN "  
-                + "UPDATE SET "  + matchedRecordString
-                + " WHEN NOT MATCHED THEN " 
+                string commandText = "CREATE PROCEDURE " + "dbo.Upsert" + topic
+                + " @UpdateRecords " + "dbo.Table" + topic + " READONLY "
+                + "AS BEGIN "
+                + "MERGE INTO " + topic + " AS Target "
+                + "Using @UpdateRecords AS Source "
+                + "On Target.id_lokalId = Source.id_lokalId WHEN MATCHED THEN "
+                + "UPDATE SET " + matchedRecordString
+                + " WHEN NOT MATCHED THEN "
                 + "INSERT " + "(" + tableColumns + ")"
-                + "Values " +  "(" + sourceColumns + "); " 
+                + "Values " + "(" + sourceColumns + "); "
                 + "END";
-                
-              using(SqlCommand command = new SqlCommand(commandText, connection))
+
+                using (SqlCommand command = new SqlCommand(commandText, connection))
                 {
                     command.ExecuteNonQuery();
                 }
 
                 connection.Close();
+            }
+        }
+
+        public bool checkTable(string topic)
+        {
+            using (SqlConnection connection = new SqlConnection(_databaseSetting.ConnectionString))
+            {
+                string cmdText = @"IF EXISTS(SELECT * FROM INFORMATION_SCHEMA.TABLES 
+                       WHERE TABLE_NAME='" + topic + "') SELECT 1 ELSE SELECT 0";
+                connection.Open();
+                using (SqlCommand command = new SqlCommand(cmdText, connection))
+                {
+                    bool x = Convert.ToBoolean(command.ExecuteScalar());
+                    Console.WriteLine(x);
+                    connection.Close();
+                    return x;
+                }
+            }
+        }
+
+        public bool checkType(string topic)
+        {
+            using (SqlConnection connection = new SqlConnection(_databaseSetting.ConnectionString))
+            {
+                string cmdText = @"IF EXISTS(SELECT * FROM sys.types 
+                       WHERE name='" + "table" + topic + "') SELECT 1 ELSE SELECT 0";
+                connection.Open();
+                using (SqlCommand command = new SqlCommand(cmdText, connection))
+                {
+                    bool x = Convert.ToBoolean(command.ExecuteScalar());
+                    Console.WriteLine(x);
+                    connection.Close();
+                    return x;
+                }
+            }
+        }
+
+        public bool checkProcedure(string topic)
+        {
+            using (SqlConnection connection = new SqlConnection(_databaseSetting.ConnectionString))
+            {
+                string cmdText = @"IF EXISTS(SELECT * FROM sys.procedures 
+                       WHERE name='" + "upsert" + topic + "') SELECT 1 ELSE SELECT 0";
+                connection.Open();
+                using (SqlCommand command = new SqlCommand(cmdText, connection))
+                {
+                    bool x = Convert.ToBoolean(command.ExecuteScalar());
+                    Console.WriteLine(x);
+                    connection.Close();
+                    return x;
+                }
             }
         }
 

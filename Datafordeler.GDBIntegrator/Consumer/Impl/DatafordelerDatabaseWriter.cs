@@ -39,8 +39,6 @@ namespace Datafordeler.DBIntegrator.Consumer
         public void Start()
         {
             List<JObject> list = new List<JObject>();
-            var topics = _kafkaSetting.DatafordelereTopic.Split(",");
-            var server = _kafkaSetting.Server;
             var kafka = _kafkaSetting.Values;
             //Console.WriteLine("This is one topic" + topics[0]);
             //Console.WriteLine("This is the second topic " + topics[1]);
@@ -63,15 +61,22 @@ namespace Datafordeler.DBIntegrator.Consumer
                            {
                                if (message.Body is JObject)
                                {
-                               //await HandleSubscribedEvent((JObject)message.Body);
-                               list.Add((JObject)message.Body);
-                                   if (list.Count >= 100)
+                                   //await HandleSubscribedEvent((JObject)message.Body);
+                                   list.Add((JObject)message.Body);
+                                   if (list.Count >= 1000)
                                    {
                                        await (HandleMessages(list, topic, columns));
+                                       Console.WriteLine("I am here inside the loop");
                                        list.Clear();
                                    }
+
                                }
                            }
+                           Console.WriteLine("This is the number of items " + list.Count); 
+                           await (HandleMessages(list, topic, columns));
+                           Console.WriteLine("I am here outside the loop");
+                           list.Clear();
+
 
                        }).Start();
                 }
@@ -80,10 +85,10 @@ namespace Datafordeler.DBIntegrator.Consumer
         }
 
 
-        private async Task HandleMessages(List<JObject> list,string topic,string[] columns)
+        private async Task HandleMessages(List<JObject> list, string topic, string[] columns)
         {
-             //_logger.LogInformation("Recieved a message");
-            _databaseWriter.UpsertData(list,topic,columns);
+            //_logger.LogInformation("Recieved a message");
+            _databaseWriter.AddToSql(list, topic, columns);
             //Console.WriteLine("THis is the topic" +_kafkaSetting.DatafordelereTopic);
         }
 
