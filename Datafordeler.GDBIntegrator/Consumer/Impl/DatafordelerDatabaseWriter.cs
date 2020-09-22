@@ -72,11 +72,13 @@ namespace Datafordeler.DBIntegrator.Consumer
 
                                }
                            }
-                           Console.WriteLine("This is the number of items " + list.Count); 
+                           Console.WriteLine("This is the number of items " + list.Count);
+                           Console.WriteLine("This is the number of messages " +  messages.Count);
+                           Console.WriteLine("This is the topic " + topic);
                            await (HandleMessages(list, topic, columns));
                            Console.WriteLine("I am here outside the loop");
                            list.Clear();
-
+                         
 
                        }).Start();
                 }

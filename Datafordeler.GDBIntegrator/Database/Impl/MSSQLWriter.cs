@@ -31,13 +31,6 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
 
         public void AddToSql(List<JObject> batch, string topic, string[] columns)
         {
-            /*
-            JObject rss = new JObject(new JProperty("id_lokalId","1"), new JProperty("unitAddressDescription","ccc"));
-            JObject rss1 = new JObject(new JProperty("id_lokalId","1"), new JProperty("unitAddressDescription","ddd"));
-            batch = new List<JObject>();
-            batch.Add(rss);
-            batch.Add(rss1);
-            */
             //_logger.LogDebug("I wrote some stuff: " + data);
 
             if (checkTable(topic) == false)
@@ -45,41 +38,73 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 createTable(topic, columns);
                 createType(topic, columns);
                 createStoredProcedure(topic, columns);
-                UpsertData(batch,topic,columns);
 
+                if (columns.Contains("geo"))
+                {
+                    UpsertData(batch, topic, columns);
+                }
+                else
+                {
+                    var list = checkLatestDataDuplicates(batch);
+                    UpsertData(list, topic, columns);
+                }
 
             }
             else
             {
-                UpsertData(batch,topic,columns);
+                if (columns.Contains("geo"))
+                {
+                    UpsertData(batch, topic, columns);
+                }
+                else
+                {
+                    var list = checkLatestDataDuplicates(batch);
+                    UpsertData(list, topic, columns);
+                }
+
             }
         }
 
         public void UpsertData(List<JObject> batch, string topic, string[] columns)
         {
-            var list = checkLatestDataDuplicates(batch);
-            Console.WriteLine("This is the number of items inside the loop " + list.Count);
-            using (SqlConnection connection = new SqlConnection(_databaseSetting.ConnectionString))
+
+            try
             {
-                connection.Open();
 
-                using (SqlCommand command1 = connection.CreateCommand())
+                Console.WriteLine("This is the number of items inside the loop " + batch.Count + " for this topic " + topic);
+                using (SqlConnection connection = new SqlConnection(_databaseSetting.ConnectionString))
                 {
+                    connection.Open();
 
-                    command1.CommandText = "dbo.Upsert" + topic;
-                    //command1.CommandText = "[dbo].[BulkInsertFromWKT]";
+                    using (SqlCommand command1 = connection.CreateCommand())
+                    {
 
-                    command1.CommandType = CommandType.StoredProcedure;
+                        command1.CommandText = "dbo.Upsert" + topic;
+                        //command1.CommandText = "[dbo].[BulkInsertFromWKT]";
 
-                    SqlParameter parameter = command1.Parameters.AddWithValue("@UpdateRecords", CreateDataTable(list, columns));
-                    parameter.SqlDbType = SqlDbType.Structured;
-                    parameter.TypeName = "dbo.Table" + topic;
-                    //parameter.TypeName = "[dbo].[WKT_Example]";
-                    command1.ExecuteNonQuery();
+                        command1.CommandType = CommandType.StoredProcedure;
+
+                        SqlParameter parameter = command1.Parameters.AddWithValue("@UpdateRecords", CreateDataTable(batch, columns));
+                        parameter.SqlDbType = SqlDbType.Structured;
+                        parameter.TypeName = "dbo.Table" + topic;
+                        //parameter.TypeName = "[dbo].[WKT_Example]";
+                        command1.ExecuteNonQuery();
+                    }
+
+                    connection.Close();
+
                 }
+            }
+            catch(System.NullReferenceException e)
+            {
+                Console.WriteLine("These many items are here" + batch.Count);
+                Console.WriteLine("This is the topic" + topic);
+                foreach(var item in columns)
+                {
+                    Console.WriteLine("This is the columns " +  item.ToString() );
+                } 
 
-                connection.Close();
-
+                
             }
         }
 
@@ -243,15 +268,24 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 connection.Open();
 
                 StringBuilder mystringBuilder = new StringBuilder();
+                string id;
 
+                if (columns.Contains("geo"))
+                {
+                    id = "gml_id";
+                }
+                else
+                {
+                    id = "id_lokalId";
+                }
 
                 foreach (var column in columns)
                 {
-                    if (column == "id_lokalId")
+                    if (column == "id_lokalId" | column == "gml_id")
                     {
                         mystringBuilder.Append(column + " varchar(900)" + ",");
                     }
-                    else if (column == "position" | column == "roadRegistrationRoadLine")
+                    else if (column == "position" | column == "roadRegistrationRoadLine" | column == "geo")
                     {
                         mystringBuilder.Append(column + " geometry" + ",");
                         Console.WriteLine(mystringBuilder);
@@ -262,7 +296,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                     }
                 }
                 mystringBuilder = mystringBuilder.Remove(mystringBuilder.Length - 1, 1);
-                string tableCommandText = "Create table " + topic + " (" + mystringBuilder + " CONSTRAINT PK_" + topic + " PRIMARY KEY(id_lokalId)" + ")";
+                string tableCommandText = "Create table " + topic + " (" + mystringBuilder + " CONSTRAINT PK_" + topic + " PRIMARY KEY" + " (" + id + ")" + ")";
 
                 using (SqlCommand command = new SqlCommand(tableCommandText, connection))
                 {
@@ -283,7 +317,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
 
                 foreach (var column in columns)
                 {
-                    if (column == "id_lokalId")
+                    if (column == "id_lokalId" | column == "gml_id")
                     {
                         mystringBuilder.Append(column + " varchar(900)" + ",");
                     }
@@ -317,12 +351,24 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 StringBuilder tableColumns = new StringBuilder();
                 StringBuilder sourceColumns = new StringBuilder();
 
+                string id;
+
+
+                if (columns.Contains("geo"))
+                {
+                    id = "gml_id";
+                }
+                else
+                {
+                    id = "id_lokalId";
+                }
+
                 foreach (var col in columns)
                 {
-                    if (col == "position" | col == "roadRegistrationRoadLine")
+                    if (col == "position" | col == "geo" | col == "roadRegistrationRoadLine")
                     {
-                        matchedRecordString.Append("Target." + col + "=" + "geometry::STGeomFromText(Source." + col + ",4326),");
-                        sourceColumns.Append("geometry::STGeomFromText(Source." + col + ",4326),");
+                        matchedRecordString.Append("Target." + col + "=" + "geometry::STGeomFromText(Source." + col + ",25832),");
+                        sourceColumns.Append("geometry::STGeomFromText(Source." + col + ",25832),");
                         tableColumns.Append(col + ",");
                     }
                     else
@@ -345,7 +391,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 + "AS BEGIN "
                 + "MERGE INTO " + topic + " AS Target "
                 + "Using @UpdateRecords AS Source "
-                + "On Target.id_lokalId = Source.id_lokalId WHEN MATCHED THEN "
+                + "On Target." + id + "= Source." + id + " WHEN MATCHED THEN "
                 + "UPDATE SET " + matchedRecordString
                 + " WHEN NOT MATCHED THEN "
                 + "INSERT " + "(" + tableColumns + ")"
