@@ -20,6 +20,7 @@ namespace Datafordeler.DBIntegrator.Consumer
         private readonly ILogger<DatafordelereDatabaseWriter> _logger;
         private readonly KafkaSetting _kafkaSetting;
         private readonly DatabaseSetting _databaseSetting;
+        private List<IDisposable> _consumers = new List<IDisposable>();
 
         private readonly IDatabaseWriter _databaseWriter;
 
@@ -49,7 +50,7 @@ namespace Datafordeler.DBIntegrator.Consumer
                 {
                     var topic = obj.Key;
                     var columns = obj.Value.Split(",");
-                    _consumer = Configure
+                    var consumer = _consumer = Configure
                        .Consumer(topic, c => c.UseKafka(_kafkaSetting.Server))
                        .Serialization(s => s.DatafordelerEventDeserializer())
                        .Topics(t => t.Subscribe(topic))
@@ -69,7 +70,6 @@ namespace Datafordeler.DBIntegrator.Consumer
                                        Console.WriteLine("I am here inside the loop");
                                        list.Clear();
                                    }
-
                                }
                            }
                            Console.WriteLine("This is the number of items " + list.Count);
@@ -78,12 +78,11 @@ namespace Datafordeler.DBIntegrator.Consumer
                            await (HandleMessages(list, topic, columns));
                            Console.WriteLine("I am here outside the loop");
                            list.Clear();
-                         
-
                        }).Start();
+
+                    _consumers.Add(consumer);
                 }
             }
-
         }
 
 
@@ -96,7 +95,7 @@ namespace Datafordeler.DBIntegrator.Consumer
 
         public void Dispose()
         {
-
+            _consumers.ForEach(x => x.Dispose());
         }
     }
 }

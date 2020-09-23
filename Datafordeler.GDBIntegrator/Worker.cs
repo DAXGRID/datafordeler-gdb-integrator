@@ -30,6 +30,8 @@ namespace Datafordeler.DBIntegrator
             {
                 await Task.Delay(1000, stoppingToken);
             }
+
+            _datafordelerConsumer.Dispose();
         }
     }
 }
