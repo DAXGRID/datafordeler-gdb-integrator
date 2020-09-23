@@ -24,6 +24,8 @@ namespace Datafordeler.DBIntegrator.Consumer
 
         private readonly IDatabaseWriter _databaseWriter;
 
+        private Dictionary<string, List<JObject>> _topicList = new Dictionary<string, List<JObject>>();
+
         public DatafordelereDatabaseWriter(
             ILogger<DatafordelereDatabaseWriter> logger,
             IOptions<KafkaSetting> kafkaSetting,
@@ -41,8 +43,6 @@ namespace Datafordeler.DBIntegrator.Consumer
         {
             List<JObject> list = new List<JObject>();
             var kafka = _kafkaSetting.Values;
-            //Console.WriteLine("This is one topic" + topics[0]);
-            //Console.WriteLine("This is the second topic " + topics[1]);
             if (kafka != null)
             {
 
@@ -62,22 +62,25 @@ namespace Datafordeler.DBIntegrator.Consumer
                            {
                                if (message.Body is JObject)
                                {
-                                   //await HandleSubscribedEvent((JObject)message.Body);
-                                   list.Add((JObject)message.Body);
-                                   if (list.Count >= 1000)
+
+                                   if(!_topicList.ContainsKey(topic))
                                    {
-                                       await (HandleMessages(list, topic, columns));
-                                       Console.WriteLine("I am here inside the loop");
-                                       list.Clear();
+                                       _topicList.Add(topic,new List<JObject>());
+                                        _topicList[topic].Add((JObject)message.Body);
+                                   }
+                                   else
+                                   {
+                                        _topicList[topic].Add((JObject)message.Body);
+                                   }
+                                   if (_topicList[topic].Count >= 1000)
+                                   {
+                                       await (HandleMessages(_topicList[topic], topic, columns));
+                                       _topicList[topic].Clear();
                                    }
                                }
                            }
-                           Console.WriteLine("This is the number of items " + list.Count);
-                           Console.WriteLine("This is the number of messages " +  messages.Count);
-                           Console.WriteLine("This is the topic " + topic);
-                           await (HandleMessages(list, topic, columns));
-                           Console.WriteLine("I am here outside the loop");
-                           list.Clear();
+                           await (HandleMessages(_topicList[topic], topic, columns));
+                            _topicList[topic].Clear();
                        }).Start();
 
                     _consumers.Add(consumer);
