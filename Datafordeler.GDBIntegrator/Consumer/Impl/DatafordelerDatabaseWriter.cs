@@ -91,9 +91,8 @@ namespace Datafordeler.DBIntegrator.Consumer
 
         private async Task HandleMessages(List<JObject> list, string topic, string[] columns)
         {
-            //_logger.LogInformation("Recieved a message");
             _databaseWriter.AddToSql(list, topic, columns);
-            //Console.WriteLine("THis is the topic" +_kafkaSetting.DatafordelereTopic);
+            
         }
 
         public void Dispose()

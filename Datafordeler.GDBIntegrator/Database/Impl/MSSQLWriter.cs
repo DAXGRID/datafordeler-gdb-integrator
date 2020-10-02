@@ -71,7 +71,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             try
             {
 
-                Console.WriteLine("This is the number of items inside the loop " + batch.Count + " for this topic " + topic);
+               
                 using (SqlConnection connection = new SqlConnection(_databaseSetting.ConnectionString))
                 {
                     connection.Open();
@@ -95,16 +95,11 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
 
                 }
             }
-            catch(System.NullReferenceException e)
+            catch (System.NullReferenceException e)
             {
-                Console.WriteLine("These many items are here" + batch.Count);
-                Console.WriteLine("This is the topic" + topic);
-                foreach(var item in columns)
-                {
-                    Console.WriteLine("This is the columns " +  item.ToString() );
-                } 
+                _logger.LogError("Error writing data: {0}.", e.GetType().Name);
 
-                
+
             }
         }
 
@@ -417,7 +412,6 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 using (SqlCommand command = new SqlCommand(cmdText, connection))
                 {
                     bool x = Convert.ToBoolean(command.ExecuteScalar());
-                    Console.WriteLine(x);
                     connection.Close();
                     return x;
                 }
@@ -434,7 +428,6 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 using (SqlCommand command = new SqlCommand(cmdText, connection))
                 {
                     bool x = Convert.ToBoolean(command.ExecuteScalar());
-                    Console.WriteLine(x);
                     connection.Close();
                     return x;
                 }
@@ -451,7 +444,6 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 using (SqlCommand command = new SqlCommand(cmdText, connection))
                 {
                     bool x = Convert.ToBoolean(command.ExecuteScalar());
-                    Console.WriteLine(x);
                     connection.Close();
                     return x;
                 }
