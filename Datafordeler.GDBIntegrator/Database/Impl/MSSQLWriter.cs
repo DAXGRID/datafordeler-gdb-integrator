@@ -37,7 +37,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             {
                 createTable(topic, columns);
                 createType(topic, columns);
-                createStoredProcedure(topic, columns);
+                createStoredProcedure(topic, columns,batch);
 
                 if (columns.Contains("geo"))
                 {
@@ -71,7 +71,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             try
             {
 
-               
+
                 using (SqlConnection connection = new SqlConnection(_databaseSetting.ConnectionString))
                 {
                     connection.Open();
@@ -90,15 +90,22 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                         //parameter.TypeName = "[dbo].[WKT_Example]";
                         command1.ExecuteNonQuery();
                     }
-
+                    _logger.LogInformation(batch.Count + " items were inserted in " + topic );
                     connection.Close();
 
                 }
             }
-            catch (System.NullReferenceException e)
+            catch (System.Data.SqlClient.SqlException e)
             {
-                _logger.LogError("Error writing data: {0}.", e.GetType().Name);
 
+                _logger.LogError("Error writing data: {0}.", e.GetType().Name);
+                foreach (var c in batch)
+                {
+                    if (String.IsNullOrEmpty(c["roadRegistrationRoadLine"].ToString()))
+                    {
+                        _logger.LogInformation(c.ToString());
+                    }
+                }
 
             }
         }
@@ -249,9 +256,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             {
                 list.Add(d.Value);
             }
-
-            Console.WriteLine(list.Count);
-
+            
             return list;
 
         }
@@ -282,8 +287,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                     }
                     else if (column == "position" | column == "roadRegistrationRoadLine" | column == "geo")
                     {
-                        mystringBuilder.Append(column + " geometry" + ",");
-                        Console.WriteLine(mystringBuilder);
+                        mystringBuilder.Append(column + " geometry null " + ",");
                     }
                     else
                     {
@@ -298,6 +302,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                     command.ExecuteNonQuery();
                 }
 
+                _logger.LogInformation("Table" + topic + " created");
 
 
                 connection.Close();
@@ -331,12 +336,13 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 {
                     command.ExecuteNonQuery();
                 }
+                _logger.LogInformation("Table type created");
 
                 connection.Close();
             }
         }
 
-        public void createStoredProcedure(string topic, string[] columns)
+        public void createStoredProcedure(string topic, string[] columns, List<JObject> batch)
         {
             using (SqlConnection connection = new SqlConnection(_databaseSetting.ConnectionString))
             {
@@ -360,19 +366,22 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
 
                 foreach (var col in columns)
                 {
-                    if (col == "position" | col == "geo" | col == "roadRegistrationRoadLine")
-                    {
-                        matchedRecordString.Append("Target." + col + "=" + "geometry::STGeomFromText(Source." + col + ",25832),");
-                        sourceColumns.Append("geometry::STGeomFromText(Source." + col + ",25832),");
-                        tableColumns.Append(col + ",");
-                    }
-                    else
-                    {
-                        matchedRecordString.Append("Target." + col + "=" + "Source." + col + ",");
-                        sourceColumns.Append("Source." + col + ",");
-                        tableColumns.Append(col + ",");
-                    }
+                    foreach (var ob in batch)
+                    {                    
 
+                        if (col == "position" | col == "geo" | col == "roadRegistrationRoadLine")
+                        {
+                            matchedRecordString.Append("Target." + col + "=" + "geometry::STGeomFromText(Source." + col + ",25832),");
+                            sourceColumns.Append("geometry::STGeomFromText(Source." + col + ",25832),");
+                            tableColumns.Append(col + ",");
+                        }
+                        else
+                        {
+                            matchedRecordString.Append("Target." + col + "=" + "Source." + col + ",");
+                            sourceColumns.Append("Source." + col + ",");
+                            tableColumns.Append(col + ",");
+                        }
+                    }
 
                 }
                 matchedRecordString = matchedRecordString.Remove(matchedRecordString.Length - 1, 1);
@@ -397,6 +406,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 {
                     command.ExecuteNonQuery();
                 }
+                _logger.LogInformation("Stored procedure created");
 
                 connection.Close();
             }
