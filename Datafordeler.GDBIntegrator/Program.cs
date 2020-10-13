@@ -35,8 +35,8 @@ namespace Datafordeler.DBIntegrator
         {
             hostBuilder.ConfigureAppConfiguration((hostingContext, config) =>
             {
-                config.AddEnvironmentVariables();
                 config.AddJsonFile("appsettings.json", true, true);
+                config.AddEnvironmentVariables();                
             });
         }
 
@@ -72,6 +72,10 @@ namespace Datafordeler.DBIntegrator
                 services.AddSingleton<IDatafordelerConsumer, DatafordelereDatabaseWriter>();
                 services.AddSingleton<IDatabaseWriter, MSSQLWriter>();
                 services.AddHostedService<Worker>();
+
+                var loggingConfiguration = new ConfigurationBuilder()
+                   .AddEnvironmentVariables().Build();
+
             });
         }
     }

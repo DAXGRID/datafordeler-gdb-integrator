@@ -37,7 +37,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             {
                 createTable(topic, columns);
                 createType(topic, columns);
-                createStoredProcedure(topic, columns,batch);
+                createStoredProcedure(topic, columns);
 
                 if (columns.Contains("geo"))
                 {
@@ -90,7 +90,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                         //parameter.TypeName = "[dbo].[WKT_Example]";
                         command1.ExecuteNonQuery();
                     }
-                    _logger.LogInformation(batch.Count + " items were inserted in " + topic );
+                    _logger.LogInformation(batch.Count + " items were inserted in " + topic);
                     connection.Close();
 
                 }
@@ -256,7 +256,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             {
                 list.Add(d.Value);
             }
-            
+
             return list;
 
         }
@@ -287,7 +287,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                     }
                     else if (column == "position" | column == "roadRegistrationRoadLine" | column == "geo")
                     {
-                        mystringBuilder.Append(column + " geometry null " + ",");
+                        mystringBuilder.Append(column + " geometry " + ",");
                     }
                     else
                     {
@@ -342,7 +342,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             }
         }
 
-        public void createStoredProcedure(string topic, string[] columns, List<JObject> batch)
+        public void createStoredProcedure(string topic, string[] columns)
         {
             using (SqlConnection connection = new SqlConnection(_databaseSetting.ConnectionString))
             {
@@ -366,21 +366,19 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
 
                 foreach (var col in columns)
                 {
-                    foreach (var ob in batch)
-                    {                    
 
-                        if (col == "position" | col == "geo" | col == "roadRegistrationRoadLine")
-                        {
-                            matchedRecordString.Append("Target." + col + "=" + "geometry::STGeomFromText(Source." + col + ",25832),");
-                            sourceColumns.Append("geometry::STGeomFromText(Source." + col + ",25832),");
-                            tableColumns.Append(col + ",");
-                        }
-                        else
-                        {
-                            matchedRecordString.Append("Target." + col + "=" + "Source." + col + ",");
-                            sourceColumns.Append("Source." + col + ",");
-                            tableColumns.Append(col + ",");
-                        }
+
+                    if (col == "position" | col == "geo" | col == "roadRegistrationRoadLine")
+                    {
+                        matchedRecordString.Append("Target." + col + "=" + "geometry::STGeomFromText(Source." + col + ",25832),");
+                        sourceColumns.Append("geometry::STGeomFromText(Source." + col + ",25832),");
+                        tableColumns.Append(col + ",");
+                    }
+                    else
+                    {
+                        matchedRecordString.Append("Target." + col + "=" + "Source." + col + ",");
+                        sourceColumns.Append("Source." + col + ",");
+                        tableColumns.Append(col + ",");
                     }
 
                 }

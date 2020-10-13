@@ -20,7 +20,7 @@ namespace Datafordeler.GDBIntegrator.Database
         void createTable(string topic, string[] columns);
         void createType(string topic, string[] columns);
 
-        void createStoredProcedure(string topic, string[] columns,List<JObject> batch);
+        void createStoredProcedure(string topic, string[] columns);
 
         bool checkTable(string topic);
 

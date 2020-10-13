@@ -1,35 +1,10 @@
 ---
 version: '2'
 services:
-  zookeeper:
-    image: "confluentinc/cp-zookeeper:5.2.1"
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-
-  kafka0:
-    image: "confluentinc/cp-enterprise-kafka"
+  DatafordelernConsumer:
+    image: datafordelerenconsumer
     ports:
-      - '9092:9092'
-      - '29094:29094'
-    depends_on:
-      - zookeeper
-    environment:
-      KAFKA_BROKER_ID: 0
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_LISTENERS: LISTENER_BOB://kafka0:29092,LISTENER_FRED://kafka0:9092,LISTENER_ALICE://kafka0:29094
-      KAFKA_ADVERTISED_LISTENERS: LISTENER_BOB://kafka0:29092,LISTENER_FRED://localhost:9092,LISTENER_ALICE://outgoing-dns-here:29094
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: LISTENER_BOB:PLAINTEXT,LISTENER_FRED:PLAINTEXT,LISTENER_ALICE:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: LISTENER_BOB
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 100
-
-
-  postgres:
-    image: kartoza/postgis
-    ports:
-      - 5432:5432
+      - 5320:5320
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
