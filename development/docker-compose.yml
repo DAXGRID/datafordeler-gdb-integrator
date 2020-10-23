@@ -85,6 +85,19 @@ services:
       APPSETTINGS__GEOPROCESSEDPATH: datafordeleren/geo
       APPSETTINGS__GEOFIELDLIST: vejkant
       APPSETTINGS__KAFKABOOTSTRAPSERVER: kafka0:29092
+      APPSETTINGS__CONVERTSCRIPTFILENAME: datafordeleren/convert_script.sh
+  
+  postgres:
+    image: kartoza/postgis
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - WAL_LEVEL=logical
+    volumes:
+      - .:/postgres_open_ftth
+  
       
   DatafordelerenConsumer:
     image: datafordelerenconsumer
@@ -94,6 +107,8 @@ services:
     environment:
       KAFKA__SERVER: kafka0:29092
       KAFKA__VALUES__HusnummerList: id_lokalId,status,houseNumberText,accessAddressDescription,position
+      KAFKA__VALUES__vejkant: gml_id,geo
+      KAFKA__VALUES__NavngivenVejList: id_lokalId,roadName,roadRegistrationRoadLine
       KAFKA__POSITIONFILEPATH: /tmp/
       DATABASE__DATABASEKIND: MSSQL
       DATABASE__CONNECTIONSTRING: Data Source=mssql,1433;Initial Catalog=master;User Id=sa;Password=Admin1237
