@@ -71,6 +71,7 @@ namespace Datafordeler.DBIntegrator
                 services.AddLogging();
                 services.AddSingleton<IDatafordelerConsumer, DatafordelereDatabaseWriter>();
                 services.AddSingleton<IDatabaseWriter, MSSQLWriter>();
+                services.AddSingleton<IPostgresWriter,PSQLWriter>();
                 services.AddHostedService<Worker>();
 
                 var loggingConfiguration = new ConfigurationBuilder()

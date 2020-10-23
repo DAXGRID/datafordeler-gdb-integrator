@@ -4,33 +4,132 @@ using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Data.SqlClient;
 using System.Data;
 using Newtonsoft.Json.Linq;
 using System.Linq;
 using NetTopologySuite.Geometries;
+using Npgsql;
 
 namespace Datafordeler.GDBIntegrator.Database.Impl
 {
-    public class PSQLWriter:IPostgresWriter
+    public class PSQLWriter : IPostgresWriter
     {
         private readonly ILogger<PSQLWriter> _logger;
         private readonly DatabaseSetting _databaseSetting;
         private readonly KafkaSetting _kafkaSetting;
 
-         public PSQLWriter(
-            ILogger<PSQLWriter> logger,
-            IOptions<DatabaseSetting> databaseSetting,
-            IOptions<KafkaSetting> kafkaSetting
-            )
+        public PSQLWriter(
+           ILogger<PSQLWriter> logger,
+           IOptions<DatabaseSetting> databaseSetting,
+           IOptions<KafkaSetting> kafkaSetting
+           )
         {
             _logger = logger;
             _databaseSetting = databaseSetting.Value;
             _kafkaSetting = kafkaSetting.Value;
         }
 
+        public void AddToPSQL(List<JObject> batch, string topic, string[] columns)
+        {
+            createPostgis();
+            createTable(topic,columns);
+        }
+        public void UpsertData(List<JObject> batch, string topic, string[] columns)
+        {
 
-       public List<JObject> checkLatestDataDuplicates(List<JObject> batch)
+        }
+
+        public bool checkTable(string topic)
+        {
+            string sql = "SELECT * FROM information_schema.tables WHERE table_name = '" + topic + "'";
+            using (var con = new NpgsqlConnection(_databaseSetting.ConnectionString))
+            {
+                using (var cmd = new NpgsqlCommand(sql))
+                {
+                    if (cmd.Connection == null)
+                        cmd.Connection = con;
+                    if (cmd.Connection.State != ConnectionState.Open)
+                        cmd.Connection.Open();
+
+                    lock (cmd)
+                    {
+                        using (NpgsqlDataReader rdr = cmd.ExecuteReader())
+                        {
+                            try
+                            {
+                                if (rdr != null && rdr.HasRows)
+                                    return true;
+                                return false;
+                            }
+                            catch (Exception)
+                            {
+                                return false;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+
+        public void createPostgis()
+        {
+            using (NpgsqlConnection connection = new NpgsqlConnection(_databaseSetting.ConnectionString))
+            {
+                connection.Open();
+                string tableCommandText = "Create extension postgis";
+                using (NpgsqlCommand command = new NpgsqlCommand(tableCommandText, connection))
+                {
+                    command.ExecuteNonQuery();
+                }
+            }
+        }
+        public void createTable(string topic, string[] columns)
+        {
+            using (NpgsqlConnection connection = new NpgsqlConnection(_databaseSetting.ConnectionString))
+            {
+                connection.Open();
+
+                StringBuilder mystringBuilder = new StringBuilder();
+                string id;
+
+                if (columns.Contains("geo"))
+                {
+                    id = "gml_id";
+                }
+                else
+                {
+                    id = "id_lokalId";
+                }
+
+                foreach (var column in columns)
+                {
+                    if (column == "id_lokalId" | column == "gml_id")
+                    {
+                        mystringBuilder.Append(column + " varchar(200) " + ",");
+                    }
+                    else if (column == "position" | column == "roadRegistrationRoadLine" | column == "geo")
+                    {
+                        mystringBuilder.Append(column + " geometry" + ",");
+                    }
+                    else
+                    {
+                        mystringBuilder.Append(column + " varchar" + ",");
+                    }
+                }
+                //mystringBuilder = mystringBuilder.Remove(mystringBuilder.Length - 1, 1);
+                string tableCommandText = "Create table " + topic + " (" + mystringBuilder + " PRIMARY KEY" + " (" + id + ")" + ");";
+
+                using (NpgsqlCommand command = new NpgsqlCommand(tableCommandText, connection))
+                {
+                    command.ExecuteNonQuery();
+                }
+
+                _logger.LogInformation("Table" + topic + " created");
+
+            }
+        }
+        public List<JObject> checkLatestDataDuplicates(List<JObject> batch)
         {
             var dictionary = new Dictionary<string, JObject>();
             var list = new List<JObject>();

@@ -24,23 +24,27 @@ namespace Datafordeler.DBIntegrator.Consumer
 
         private readonly IDatabaseWriter _databaseWriter;
 
+        private readonly IPostgresWriter _postgresWriter;
+
         private Dictionary<string, List<JObject>> _topicList = new Dictionary<string, List<JObject>>();
 
         public DatafordelereDatabaseWriter(
             ILogger<DatafordelereDatabaseWriter> logger,
             IOptions<KafkaSetting> kafkaSetting,
             IOptions<DatabaseSetting> databaseSetting,
-            IDatabaseWriter databaseWriter
+            IDatabaseWriter databaseWriter,
+            IPostgresWriter postgresWriter
             )
         {
             _logger = logger;
             _kafkaSetting = kafkaSetting.Value;
             _databaseSetting = databaseSetting.Value;
             _databaseWriter = databaseWriter;
+            _postgresWriter = postgresWriter;
         }
 
         public void Start()
-        {
+        {   
             List<JObject> list = new List<JObject>();
             var kafka = _kafkaSetting.Values;
             if (kafka != null)
@@ -91,7 +95,8 @@ namespace Datafordeler.DBIntegrator.Consumer
 
         private async Task HandleMessages(List<JObject> list, string topic, string[] columns)
         {
-            _databaseWriter.AddToSql(list, topic, columns);
+            //_databaseWriter.AddToSql(list, topic, columns);
+            _postgresWriter.AddToPSQL(list,topic,columns);
             
         }
 
