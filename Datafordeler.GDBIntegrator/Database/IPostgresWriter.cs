@@ -6,9 +6,9 @@ namespace Datafordeler.GDBIntegrator.Database
     public interface IPostgresWriter
     {
         void createPostgis();
+        
         void createTable(string topic, string[] columns);
-        bool checkTable(string topic);
-
+        
         List<JObject> checkLatestDataDuplicates(List<JObject> batch);
 
         void UpsertData(List<JObject> batch, string topic, string[] columns);

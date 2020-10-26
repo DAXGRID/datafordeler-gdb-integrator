@@ -17,6 +17,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
         private readonly ILogger<PSQLWriter> _logger;
         private readonly DatabaseSetting _databaseSetting;
         private readonly KafkaSetting _kafkaSetting;
+        private bool postgisExecuted;
 
         public PSQLWriter(
            ILogger<PSQLWriter> logger,
@@ -27,50 +28,44 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             _logger = logger;
             _databaseSetting = databaseSetting.Value;
             _kafkaSetting = kafkaSetting.Value;
+            postgisExecuted = false;
         }
 
         public void AddToPSQL(List<JObject> batch, string topic, string[] columns)
         {
-            createPostgis();
-            createTable(topic,columns);
+
+            if (postgisExecuted == false)
+            {
+                createPostgis();
+                postgisExecuted = true;
+            }
+
+            createTable(topic, columns);
+
         }
         public void UpsertData(List<JObject> batch, string topic, string[] columns)
         {
+            StringBuilder mystringBuilder = new StringBuilder();
 
-        }
-
-        public bool checkTable(string topic)
-        {
-            string sql = "SELECT * FROM information_schema.tables WHERE table_name = '" + topic + "'";
-            using (var con = new NpgsqlConnection(_databaseSetting.ConnectionString))
+            foreach (var column in columns)
             {
-                using (var cmd = new NpgsqlCommand(sql))
+                mystringBuilder.Append(column + ",");
+            }
+            mystringBuilder = mystringBuilder.Remove(mystringBuilder.Length - 1, 1);
+            using (var conn = new NpgsqlConnection(_databaseSetting.ConnectionString))
+            {
+                conn.Open();
+                using (var writer = conn.BeginTextImport("COPY " + topic + " (" + mystringBuilder + ") FROM STDIN "))
                 {
-                    if (cmd.Connection == null)
-                        cmd.Connection = con;
-                    if (cmd.Connection.State != ConnectionState.Open)
-                        cmd.Connection.Open();
 
-                    lock (cmd)
+                    foreach (var documment in batch)
                     {
-                        using (NpgsqlDataReader rdr = cmd.ExecuteReader())
-                        {
-                            try
-                            {
-                                if (rdr != null && rdr.HasRows)
-                                    return true;
-                                return false;
-                            }
-                            catch (Exception)
-                            {
-                                return false;
-                            }
-                        }
+                        writer.Write(documment);
                     }
                 }
             }
-        }
 
+        }
 
         public void createPostgis()
         {
@@ -118,14 +113,14 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                     }
                 }
                 //mystringBuilder = mystringBuilder.Remove(mystringBuilder.Length - 1, 1);
-                string tableCommandText = "Create table " + topic + " (" + mystringBuilder + " PRIMARY KEY" + " (" + id + ")" + ");";
+                string tableCommandText = "Create table IF NOT EXISTS " + topic + " (" + mystringBuilder + " PRIMARY KEY" + " (" + id + ")" + ");";
 
                 using (NpgsqlCommand command = new NpgsqlCommand(tableCommandText, connection))
                 {
                     command.ExecuteNonQuery();
                 }
 
-                _logger.LogInformation("Table" + topic + " created");
+                _logger.LogInformation("Table " + topic + " created");
 
             }
         }
