@@ -48,7 +48,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
 
             //create temporary table
             createTable(topic + "_temp", columns);
-            
+
             createTable(topic, columns);
 
             var objects = checkLatestDataDuplicates(batch);
@@ -173,19 +173,21 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
 
                 foreach (var column in columns)
                 {
-                    if (column == "id_lokalId" | column == "gml_id")
+                    if (topic.Contains("temp"))
                     {
-                        mystringBuilder.Append(column + " varchar " + ",");
-                    }
-                    else if (column == "position" | column == "roadRegistrationRoadLine" | column == "geo")
-                    {
-                        //mystringBuilder.Append(column + " geometry" + ",");
                         mystringBuilder.Append(column + " varchar" + ",");
                     }
-
                     else
                     {
-                        mystringBuilder.Append(column + " varchar" + ",");
+                        if (column == "position" | column == "roadRegistrationRoadLine" | column == "geo")
+                        {
+                            mystringBuilder.Append(column + " geometry" + ",");
+                        }
+                        else
+                        {
+                            mystringBuilder.Append(column + " varchar" + ",");
+
+                        }
                     }
                 }
 
