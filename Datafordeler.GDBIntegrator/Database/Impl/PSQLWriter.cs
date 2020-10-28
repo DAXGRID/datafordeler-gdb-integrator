@@ -20,6 +20,8 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
         private bool postgisExecuted;
         private bool tableCreated;
 
+        private bool dataInserted;
+
         public PSQLWriter(
            ILogger<PSQLWriter> logger,
            IOptions<DatabaseSetting> databaseSetting,
@@ -31,6 +33,8 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             _kafkaSetting = kafkaSetting.Value;
             postgisExecuted = false;
             tableCreated = false;
+            dataInserted = false;
+
         }
 
         public void AddToPSQL(List<JObject> batch, string topic, string[] columns)
@@ -44,21 +48,23 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
 
             //create temporary table
             createTable(topic + "_temp", columns);
-
+            
             createTable(topic, columns);
+
             var objects = checkLatestDataDuplicates(batch);
             UpsertData(objects, topic + "_temp", columns);
             InsertOnConflict(topic + "_temp", topic, columns);
-            DropTable(topic+"_temp");
+
+
 
         }
 
         public void DropTable(string table)
         {
-            using(var conn = new NpgsqlConnection(_databaseSetting.ConnectionString) )
+            using (var conn = new NpgsqlConnection(_databaseSetting.ConnectionString))
             {
                 var commandText = "DROP TABLE " + table + ";";
-                using(var command = new NpgsqlCommand(commandText,conn))
+                using (var command = new NpgsqlCommand(commandText, conn))
                 {
                     command.ExecuteNonQuery();
                 }
@@ -92,8 +98,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             using (NpgsqlConnection conn = new NpgsqlConnection(_databaseSetting.ConnectionString))
             {
                 conn.Open();
-                string commandText = "LOCK TABLE " + table + " in EXCLUSIVE MODE "
-                + " INSERT INTO " + table + " SELECT"
+                string commandText = " INSERT INTO " + table + " SELECT "
                 + mystringBuilder
                 + " FROM " + tempTable
                 + " ON CONFLICT (" + id + ") DO UPDATE "
@@ -185,10 +190,9 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 }
 
                 //mystringBuilder = mystringBuilder.Remove(mystringBuilder.Length - 1, 1);
-                
-                    tableCommandText = "Create table IF NOT EXISTS " + topic + " (" + mystringBuilder + " PRIMARY KEY" + " (" + id + ")" + ");";
+                tableCommandText = "Create table IF NOT EXISTS " + topic + " (" + mystringBuilder + " PRIMARY KEY" + " (" + id + ")" + ");";
 
-                
+
 
                 using (NpgsqlCommand command = new NpgsqlCommand(tableCommandText, connection))
                 {
