@@ -41,11 +41,14 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             }
 
             createTable(topic, columns);
+            var objects = checkLatestDataDuplicates(batch);
+            UpsertData(objects, topic, columns);
 
         }
         public void UpsertData(List<JObject> batch, string topic, string[] columns)
         {
             StringBuilder mystringBuilder = new StringBuilder();
+            string doc;
 
             foreach (var column in columns)
             {
@@ -55,13 +58,18 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             using (var conn = new NpgsqlConnection(_databaseSetting.ConnectionString))
             {
                 conn.Open();
-                using (var writer = conn.BeginTextImport("COPY " + topic + " (" + mystringBuilder + ") FROM STDIN "))
+                using (var writer = conn.BeginBinaryImport("COPY " + topic + " (" + mystringBuilder + ") FROM STDIN (FORMAT BINARY) "))
                 {
-
-                    foreach (var documment in batch)
+                    foreach (var document in batch)
                     {
-                        writer.Write(documment);
+                        writer.StartRow();
+                        foreach (var column in columns)
+                        {
+
+                            writer.Write((string)document[column]);
+                        }
                     }
+                    writer.Complete();
                 }
             }
 
@@ -101,17 +109,20 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 {
                     if (column == "id_lokalId" | column == "gml_id")
                     {
-                        mystringBuilder.Append(column + " varchar(200) " + ",");
+                        mystringBuilder.Append(column + " varchar " + ",");
                     }
                     else if (column == "position" | column == "roadRegistrationRoadLine" | column == "geo")
                     {
-                        mystringBuilder.Append(column + " geometry" + ",");
+                        //mystringBuilder.Append(column + " geometry" + ",");
+                        mystringBuilder.Append(column + " varchar" + ",");
                     }
+
                     else
                     {
                         mystringBuilder.Append(column + " varchar" + ",");
                     }
                 }
+
                 //mystringBuilder = mystringBuilder.Remove(mystringBuilder.Length - 1, 1);
                 string tableCommandText = "Create table IF NOT EXISTS " + topic + " (" + mystringBuilder + " PRIMARY KEY" + " (" + id + ")" + ");";
 
@@ -121,8 +132,8 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 }
 
                 _logger.LogInformation("Table " + topic + " created");
-
             }
+
         }
         public List<JObject> checkLatestDataDuplicates(List<JObject> batch)
         {

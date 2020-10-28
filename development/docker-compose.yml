@@ -108,7 +108,6 @@ services:
     environment:
       KAFKA__SERVER: kafka0:29092
       KAFKA__VALUES__HusnummerList: id_lokalId,status,houseNumberText,accessAddressDescription,position
-      KAFKA__VALUES__vejkant: gml_id,geo
       KAFKA__VALUES__NavngivenVejList: id_lokalId,roadName,roadRegistrationRoadLine
       KAFKA__POSITIONFILEPATH: /tmp/
       DATABASE__DATABASEKIND: MSSQL
