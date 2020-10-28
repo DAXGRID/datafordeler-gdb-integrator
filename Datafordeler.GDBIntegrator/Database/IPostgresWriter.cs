@@ -12,6 +12,7 @@ namespace Datafordeler.GDBIntegrator.Database
         List<JObject> checkLatestDataDuplicates(List<JObject> batch);
 
         void UpsertData(List<JObject> batch, string topic, string[] columns);
+        void InsertOnConflict(string tempTable,string table, string[] columns);
         void AddToPSQL(List<JObject> batch, string topic, string[] columns);
 
     }
