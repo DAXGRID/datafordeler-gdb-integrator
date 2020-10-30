@@ -42,20 +42,25 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
 
             if (postgisExecuted == false)
             {
-                createPostgis();
+                //createPostgis();
                 postgisExecuted = true;
             }
 
            
             //create temporary table
-            createTable(topic + "_temp", columns);
-            createTable(topic, columns);
-
-            var objects = checkLatestDataDuplicates(batch);
-            UpsertData(objects, topic + "_temp", columns);
-            InsertOnConflict(topic + "_temp", topic, columns);
-
-
+            if(checkTable(topic+"_temp") == false )
+            {
+                createTemporaryTable(topic + "_temp", columns);
+                createTable(topic, columns);
+            }
+            else
+            {
+                var objects = checkLatestDataDuplicates(batch);
+                _logger.LogInformation("This is the number of objects " + objects.Count);
+                UpsertData(objects, topic +"_temp", columns);
+                InsertOnConflict(topic +"_temp", topic, columns);
+            }
+            
 
         }
 
@@ -101,6 +106,46 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 + onConflictColumns + ";"
                 + "DROP TABLE " + tempTable + ";";
 
+        }
+
+        public void createTemporaryTable(string topic,string [] columns)
+        {
+                 using (NpgsqlConnection connection = new NpgsqlConnection(_databaseSetting.ConnectionString))
+            {
+                connection.Open();
+
+                StringBuilder mystringBuilder = new StringBuilder();
+                string id;
+                string tableCommandText;
+
+                if (columns.Contains("geo"))
+                {
+                    id = "gml_id";
+                }
+                else
+                {
+                    id = "id_lokalId";
+                }
+
+                foreach (var column in columns)
+                {
+                    mystringBuilder.Append(column + " varchar" + ",");
+                    
+                }
+
+                mystringBuilder = mystringBuilder.Remove(mystringBuilder.Length - 1, 1);
+
+                tableCommandText = "Create table IF NOT EXISTS " + topic + " (" + mystringBuilder + ");";
+
+                using (NpgsqlCommand command = new NpgsqlCommand(tableCommandText, connection))
+                {
+                    command.ExecuteNonQuery();
+
+                }
+
+                _logger.LogInformation("Temporary Table " + topic + " created");
+            }
+   
         }
 
         public void DropTable(string table)
@@ -151,7 +196,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             using (NpgsqlConnection conn = new NpgsqlConnection(_databaseSetting.ConnectionString))
             {
                 conn.Open();
-                string commandText = " INSERT INTO " + table + " SELECT "
+                string commandText = " INSERT INTO " + table + " SELECT DISTINCT ON (1) "
                 + mystringBuilder
                 + " FROM " + tempTable
                 + " ON CONFLICT (" + id + ") DO UPDATE "
@@ -188,6 +233,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                         }
                     }
                     writer.Complete();
+                    batch.Clear();
                 }
             }
 
