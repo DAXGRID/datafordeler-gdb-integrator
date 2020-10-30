@@ -46,9 +46,9 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 postgisExecuted = true;
             }
 
+           
             //create temporary table
             createTable(topic + "_temp", columns);
-
             createTable(topic, columns);
 
             var objects = checkLatestDataDuplicates(batch);
@@ -56,6 +56,50 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             InsertOnConflict(topic + "_temp", topic, columns);
 
 
+
+        }
+
+        public void TryMethod(List<JObject> batch, string topic, string tempTable, string[] columns)
+        {
+            string id;
+            var mystringBuilder = new StringBuilder();
+            var onConflictColumns = new StringBuilder();
+
+            if (columns.Contains("geo"))
+            {
+                id = "gml_id";
+            }
+            else
+            {
+                id = "id_lokalId";
+            }
+
+            foreach (var column in columns)
+            {
+                if (column == "position" | column == "roadRegistrationRoadLine" | column == "geo")
+                {
+                    mystringBuilder.Append("ST_GeomFromText(" + tempTable + "." + column + ",5432),");
+                    onConflictColumns.Append(column + " = " + "ST_GeomFromText(EXCLUDED." + column + ",5432),");
+                }
+                else
+                {
+                    mystringBuilder.Append(tempTable + "." + column + ",");
+                    onConflictColumns.Append(column + " = " + "EXCLUDED." + column + ",");
+
+                }
+            }
+            mystringBuilder = mystringBuilder.Remove(mystringBuilder.Length - 1, 1);
+            onConflictColumns = onConflictColumns.Remove(onConflictColumns.Length - 1, 1);
+
+            string insertCommand = "CREATE PROCEDURE" + topic + "insert()"
+                + " language sql as $$ "
+                + " INSERT INTO " + topic + " SELECT "
+                + mystringBuilder
+                + " FROM " + tempTable
+                + " ON CONFLICT (" + id + ") DO UPDATE "
+                + " SET "
+                + onConflictColumns + ";"
+                + "DROP TABLE " + tempTable + ";";
 
         }
 
@@ -87,8 +131,17 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
 
             foreach (var column in columns)
             {
-                mystringBuilder.Append(tempTable + "." + column + ",");
-                onConflictColumns.Append(column + " = " + "EXCLUDED." + column + ",");
+                if (column == "position" | column == "roadRegistrationRoadLine" | column == "geo")
+                {
+                    mystringBuilder.Append("ST_GeomFromText(" + tempTable + "." + column + ",5432),");
+                    onConflictColumns.Append(column + " = " + "ST_GeomFromText(EXCLUDED." + column + ",5432),");
+                }
+                else
+                {
+                    mystringBuilder.Append(tempTable + "." + column + ",");
+                    onConflictColumns.Append(column + " = " + "EXCLUDED." + column + ",");
+
+                }
             }
             mystringBuilder = mystringBuilder.Remove(mystringBuilder.Length - 1, 1);
             onConflictColumns = onConflictColumns.Remove(onConflictColumns.Length - 1, 1);
@@ -192,18 +245,37 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 }
 
                 //mystringBuilder = mystringBuilder.Remove(mystringBuilder.Length - 1, 1);
+
                 tableCommandText = "Create table IF NOT EXISTS " + topic + " (" + mystringBuilder + " PRIMARY KEY" + " (" + id + ")" + ");";
-
-
 
                 using (NpgsqlCommand command = new NpgsqlCommand(tableCommandText, connection))
                 {
                     command.ExecuteNonQuery();
+
                 }
 
                 _logger.LogInformation("Table " + topic + " created");
             }
 
+        }
+
+        public bool checkTable(string table)
+        {
+            using (NpgsqlConnection connection = new NpgsqlConnection(_databaseSetting.ConnectionString))
+            {
+                connection.Open();
+                string tableCommandText = " SELECT EXISTS (SELECT FROM information_schema.tables WHERE  table_schema = 'public' AND  table_name   = '" + table.ToLower() + "');";
+                using (NpgsqlCommand command = new NpgsqlCommand(tableCommandText, connection))
+                {
+                    command.ExecuteNonQuery();
+                    using (var reader = command.ExecuteReader())
+                    {
+                        reader.Read();
+                        _logger.LogInformation("Is it true that the table exists" + reader.GetValue(0).ToString());
+                        return (bool)reader.GetValue(0);
+                    }
+                }
+            }
         }
         public List<JObject> checkLatestDataDuplicates(List<JObject> batch)
         {
