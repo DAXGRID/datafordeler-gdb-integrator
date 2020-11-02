@@ -47,33 +47,17 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 postgisExecuted = true;
             }
 
-            TryMethod(batch, topic, topic + "_temp", columns);
+            //TryMethod(batch, topic, topic + "_temp", columns);
 
-            /*
-            if (checkTable(topic) == false)
+            using (NpgsqlConnection connection = new NpgsqlConnection(_databaseSetting.ConnectionString))
             {
-                createTable(topic, columns);
-            }
-            */
-
-
-            //create temporary table
-            /*
-            if (checkTable(topic + "_temp") == false)
-            {
-                createTemporaryTable(topic + "_temp", columns);
-                //createTable(topic + "_temp", columns);
-                //createTable(topic, columns);
-            }
-            else
-            {
+                connection.Open();
+                createTemporaryTable(topic+"_temp", columns, connection);
+                createTable(topic, columns, connection);
                 var objects = checkLatestDataDuplicates(batch);
-                _logger.LogInformation("This is the number of objects " + objects.Count);
-                UpsertData(objects, topic + "_temp", columns);
-                InsertOnConflict(topic + "_temp", topic, columns);
+                UpsertData(objects, topic+"_temp", columns, connection);
+                InsertOnConflict(topic+"_temp",topic,columns,connection);
             }
-            */
-
 
         }
 
@@ -195,51 +179,48 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
 
         }
 
-        public void createTemporaryTable(string topic, string[] columns)
+        public void createTemporaryTable(string topic, string[] columns, NpgsqlConnection connection)
         {
-            using (NpgsqlConnection connection = new NpgsqlConnection(_databaseSetting.ConnectionString))
+
+
+            StringBuilder mystringBuilder = new StringBuilder();
+            string id;
+            string tableCommandText;
+
+            if (columns.Contains("geo"))
             {
-                connection.Open();
+                id = "gml_id";
+            }
+            else
+            {
+                id = "id_lokalId";
+            }
 
-                StringBuilder mystringBuilder = new StringBuilder();
-                string id;
-                string tableCommandText;
-
-                if (columns.Contains("geo"))
+            foreach (var column in columns)
+            {
+                if (column == "position" | column == "roadRegistrationRoadLine" | column == "geo")
                 {
-                    id = "gml_id";
+                    mystringBuilder.Append(column + " geometry" + ",");
                 }
                 else
                 {
-                    id = "id_lokalId";
+                    mystringBuilder.Append(column + " varchar" + ",");
                 }
 
-                foreach (var column in columns)
-                {
-                    if (column == "position" | column == "roadRegistrationRoadLine" | column == "geo")
-                    {
-                        mystringBuilder.Append(column + " geometry" + ",");
-                    }
-                    else
-                    {
-                        mystringBuilder.Append(column + " varchar" + ",");
-                    }
-
-                }
-
-
-                mystringBuilder = mystringBuilder.Remove(mystringBuilder.Length - 1, 1);
-
-                tableCommandText = "Create table IF NOT EXISTS " + topic + " (" + mystringBuilder + ");";
-
-                using (NpgsqlCommand command = new NpgsqlCommand(tableCommandText, connection))
-                {
-                    command.ExecuteNonQuery();
-
-                }
-
-                _logger.LogInformation("Temporary Table " + topic + " created");
             }
+
+
+            mystringBuilder = mystringBuilder.Remove(mystringBuilder.Length - 1, 1);
+
+            tableCommandText = "Create temporary table " + topic + " (" + mystringBuilder + ");";
+
+            using (NpgsqlCommand command = new NpgsqlCommand(tableCommandText, connection))
+            {
+                command.ExecuteNonQuery();
+
+            }
+
+            _logger.LogInformation("Temporary Table " + topic + " created");
 
         }
 
@@ -255,7 +236,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 }
             }
         }
-        public void InsertOnConflict(string tempTable, string table, string[] columns)
+        public void InsertOnConflict(string tempTable, string table, string[] columns, NpgsqlConnection conn)
         {
             string id;
             var mystringBuilder = new StringBuilder();
@@ -280,25 +261,19 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             mystringBuilder = mystringBuilder.Remove(mystringBuilder.Length - 1, 1);
             onConflictColumns = onConflictColumns.Remove(onConflictColumns.Length - 1, 1);
 
+            string commandText = " INSERT INTO " + table + " SELECT DISTINCT ON (1) "
+            + mystringBuilder
+            + " FROM " + tempTable
+            + " ON CONFLICT (" + id + ") DO UPDATE "
+            + " SET "
+            + onConflictColumns + ";";
 
-
-            using (NpgsqlConnection conn = new NpgsqlConnection(_databaseSetting.ConnectionString))
+            using (NpgsqlCommand command = new NpgsqlCommand(commandText, conn))
             {
-                conn.Open();
-                string commandText = " INSERT INTO " + table + " SELECT DISTINCT ON (1) "
-                + mystringBuilder
-                + " FROM " + tempTable
-                + " ON CONFLICT (" + id + ") DO UPDATE "
-                + " SET "
-                + onConflictColumns + ";";
-
-                using (NpgsqlCommand command = new NpgsqlCommand(commandText, conn))
-                {
-                    command.ExecuteNonQuery();
-                }
+                command.ExecuteNonQuery();
             }
         }
-        public void UpsertData(List<JObject> batch, string topic, string[] columns)
+        public void UpsertData(List<JObject> batch, string topic, string[] columns, NpgsqlConnection conn)
         {
             StringBuilder mystringBuilder = new StringBuilder();
             GeometryFactory geometryFactory = new GeometryFactory();
@@ -312,32 +287,28 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
 
             }
             mystringBuilder = mystringBuilder.Remove(mystringBuilder.Length - 1, 1);
-            using (var conn = new NpgsqlConnection(_databaseSetting.ConnectionString))
-            {
 
-                conn.Open();
-                using (var writer = conn.BeginBinaryImport("COPY " + topic + " (" + mystringBuilder + ") FROM STDIN (FORMAT BINARY) "))
+            using (var writer = conn.BeginBinaryImport("COPY " + topic + " (" + mystringBuilder + ") FROM STDIN (FORMAT BINARY) "))
+            {
+                foreach (var document in batch)
                 {
-                    foreach (var document in batch)
+                    writer.StartRow();
+                    foreach (var column in columns)
                     {
-                        writer.StartRow();
-                        foreach (var column in columns)
+                        if (column == "position" | column == "roadRegistrationRoadLine" | column == "geo")
                         {
-                            if (column == "position" | column == "roadRegistrationRoadLine" | column == "geo")
-                            {
-                                rdr.DefaultSRID = 25832;
-                                var c = rdr.Read((string)document[column]);
-                                writer.Write(c);
-                            }
-                            else
-                            {
-                                writer.Write((string)document[column]);
-                            }
+                            rdr.DefaultSRID = 25832;
+                            var c = rdr.Read((string)document[column]);
+                            writer.Write(c);
+                        }
+                        else
+                        {
+                            writer.Write((string)document[column]);
                         }
                     }
-                    writer.Complete();
-                    batch.Clear();
                 }
+                writer.Complete();
+                batch.Clear();
             }
 
         }
@@ -354,58 +325,55 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 }
             }
         }
-        public void createTable(string topic, string[] columns)
+        public void createTable(string topic, string[] columns, NpgsqlConnection connection)
         {
-            using (NpgsqlConnection connection = new NpgsqlConnection(_databaseSetting.ConnectionString))
+
+            StringBuilder mystringBuilder = new StringBuilder();
+            string id;
+            string tableCommandText;
+
+            if (columns.Contains("geo"))
             {
-                connection.Open();
+                id = "gml_id";
+            }
+            else
+            {
+                id = "id_lokalId";
+            }
 
-                StringBuilder mystringBuilder = new StringBuilder();
-                string id;
-                string tableCommandText;
-
-                if (columns.Contains("geo"))
+            foreach (var column in columns)
+            {
+                if (topic.Contains("temp"))
                 {
-                    id = "gml_id";
+                    mystringBuilder.Append(column + " varchar" + ",");
                 }
                 else
                 {
-                    id = "id_lokalId";
-                }
-
-                foreach (var column in columns)
-                {
-                    if (topic.Contains("temp"))
+                    if (column == "position" | column == "roadRegistrationRoadLine" | column == "geo")
                     {
-                        mystringBuilder.Append(column + " varchar" + ",");
+                        mystringBuilder.Append(column + " geometry" + ",");
                     }
                     else
                     {
-                        if (column == "position" | column == "roadRegistrationRoadLine" | column == "geo")
-                        {
-                            mystringBuilder.Append(column + " geometry" + ",");
-                        }
-                        else
-                        {
-                            mystringBuilder.Append(column + " varchar" + ",");
+                        mystringBuilder.Append(column + " varchar" + ",");
 
-                        }
                     }
                 }
-
-                //mystringBuilder = mystringBuilder.Remove(mystringBuilder.Length - 1, 1);
-
-                tableCommandText = "Create table IF NOT EXISTS " + topic + " (" + mystringBuilder + " PRIMARY KEY" + " (" + id + ")" + ");";
-                _logger.LogInformation(tableCommandText);
-
-                using (NpgsqlCommand command = new NpgsqlCommand(tableCommandText, connection))
-                {
-                    command.ExecuteNonQuery();
-
-                }
-
-                _logger.LogInformation("Table " + topic + " created");
             }
+
+            //mystringBuilder = mystringBuilder.Remove(mystringBuilder.Length - 1, 1);
+
+            tableCommandText = "Create table IF NOT EXISTS " + topic + " (" + mystringBuilder + " PRIMARY KEY" + " (" + id + ")" + ");";
+            _logger.LogInformation(tableCommandText);
+
+            using (NpgsqlCommand command = new NpgsqlCommand(tableCommandText, connection))
+            {
+                command.ExecuteNonQuery();
+
+            }
+
+            _logger.LogInformation("Table " + topic + " created");
+
 
         }
 
