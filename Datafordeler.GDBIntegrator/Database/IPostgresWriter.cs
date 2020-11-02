@@ -9,9 +9,8 @@ namespace Datafordeler.GDBIntegrator.Database
         void createPostgis();
         
         void createTable(string topic, string[] columns, NpgsqlConnection connection);
-        
+        void createTemporaryTable(string topic, string[] columns, NpgsqlConnection connection);
         List<JObject> checkLatestDataDuplicates(List<JObject> batch);
-        bool checkTable(string table);
 
         void UpsertData(List<JObject> batch, string topic, string[] columns,NpgsqlConnection connection);
         void InsertOnConflict(string tempTable,string table, string[] columns,NpgsqlConnection connection);
