@@ -8,7 +8,9 @@ using System.Data;
 using Newtonsoft.Json.Linq;
 using System.Linq;
 using NetTopologySuite.Geometries;
+using NetTopologySuite.IO;
 using Npgsql;
+using Npgsql.NetTopologySuite;
 
 namespace Datafordeler.GDBIntegrator.Database.Impl
 {
@@ -32,8 +34,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             _databaseSetting = databaseSetting.Value;
             _kafkaSetting = kafkaSetting.Value;
             postgisExecuted = false;
-            tableCreated = false;
-            dataInserted = false;
+           NpgsqlConnection.GlobalTypeMapper.UseNetTopologySuite();
 
         }
 
@@ -46,21 +47,21 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 postgisExecuted = true;
             }
 
-           
+
             //create temporary table
-            if(checkTable(topic+"_temp") == false )
+            if (checkTable(topic + "_temp") == false)
             {
-                createTemporaryTable(topic + "_temp", columns);
+                createTable(topic + "_temp", columns);
                 createTable(topic, columns);
             }
             else
             {
                 var objects = checkLatestDataDuplicates(batch);
                 _logger.LogInformation("This is the number of objects " + objects.Count);
-                UpsertData(objects, topic +"_temp", columns);
-                InsertOnConflict(topic +"_temp", topic, columns);
+                UpsertData(objects, topic + "_temp", columns);
+                //InsertOnConflict(topic +"_temp", topic, columns);
             }
-            
+
 
         }
 
@@ -83,8 +84,8 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             {
                 if (column == "position" | column == "roadRegistrationRoadLine" | column == "geo")
                 {
-                    mystringBuilder.Append("ST_GeomFromText(" + tempTable + "." + column + ",5432),");
-                    onConflictColumns.Append(column + " = " + "ST_GeomFromText(EXCLUDED." + column + ",5432),");
+                    mystringBuilder.Append("ST_GeomFromText(" + tempTable + "." + column + ",25832),");
+                    onConflictColumns.Append(column + " = " + "ST_GeomFromText(EXCLUDED." + column + ",25832),");
                 }
                 else
                 {
@@ -107,48 +108,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 + "DROP TABLE " + tempTable + ";";
 
         }
-
-        public void createTemporaryTable(string topic,string [] columns)
-        {
-                 using (NpgsqlConnection connection = new NpgsqlConnection(_databaseSetting.ConnectionString))
-            {
-                connection.Open();
-
-                StringBuilder mystringBuilder = new StringBuilder();
-                string id;
-                string tableCommandText;
-
-                if (columns.Contains("geo"))
-                {
-                    id = "gml_id";
-                }
-                else
-                {
-                    id = "id_lokalId";
-                }
-
-                foreach (var column in columns)
-                {
-                    mystringBuilder.Append(column + " varchar" + ",");
-                    
-                }
-
-                mystringBuilder = mystringBuilder.Remove(mystringBuilder.Length - 1, 1);
-
-                tableCommandText = "Create table IF NOT EXISTS " + topic + " (" + mystringBuilder + ");";
-
-                using (NpgsqlCommand command = new NpgsqlCommand(tableCommandText, connection))
-                {
-                    command.ExecuteNonQuery();
-
-                }
-
-                _logger.LogInformation("Temporary Table " + topic + " created");
-            }
-   
-        }
-
-        public void DropTable(string table)
+            public void DropTable(string table)
         {
             using (var conn = new NpgsqlConnection(_databaseSetting.ConnectionString))
             {
@@ -178,8 +138,8 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             {
                 if (column == "position" | column == "roadRegistrationRoadLine" | column == "geo")
                 {
-                    mystringBuilder.Append("ST_GeomFromText(" + tempTable + "." + column + ",5432),");
-                    onConflictColumns.Append(column + " = " + "ST_GeomFromText(EXCLUDED." + column + ",5432),");
+                    mystringBuilder.Append("st_geometryfromtext(" + tempTable + "." + column + ",25832),");
+                    onConflictColumns.Append(column + " = " + "st_geometryfromtext(EXCLUDED." + column + ",25832),");
                 }
                 else
                 {
@@ -203,6 +163,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 + " SET "
                 + onConflictColumns + ";";
 
+                _logger.LogInformation("This is the command " + commandText);
                 using (NpgsqlCommand command = new NpgsqlCommand(commandText, conn))
                 {
                     command.ExecuteNonQuery();
@@ -212,14 +173,20 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
         public void UpsertData(List<JObject> batch, string topic, string[] columns)
         {
             StringBuilder mystringBuilder = new StringBuilder();
+            GeometryFactory geometryFactory = new GeometryFactory();
+            WKTReader rdr = new WKTReader(geometryFactory);
 
             foreach (var column in columns)
             {
+
                 mystringBuilder.Append(column + ",");
+
+
             }
             mystringBuilder = mystringBuilder.Remove(mystringBuilder.Length - 1, 1);
             using (var conn = new NpgsqlConnection(_databaseSetting.ConnectionString))
             {
+               
                 conn.Open();
                 using (var writer = conn.BeginBinaryImport("COPY " + topic + " (" + mystringBuilder + ") FROM STDIN (FORMAT BINARY) "))
                 {
@@ -228,8 +195,16 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                         writer.StartRow();
                         foreach (var column in columns)
                         {
-
-                            writer.Write((string)document[column]);
+                            if (column == "position"| column == "roadRegistrationRoadLine" | column == "geo")
+                            {
+                                rdr.DefaultSRID = 25832;
+                                var c = rdr.Read((string)document[column]);
+                                writer.Write(c);
+                            }
+                            else
+                            {
+                                writer.Write((string)document[column]);
+                            }
                         }
                     }
                     writer.Complete();
@@ -426,7 +401,6 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             {
                 list.Add(d.Value);
             }
-
             return list;
 
         }
