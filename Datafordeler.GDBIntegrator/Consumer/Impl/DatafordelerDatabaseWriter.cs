@@ -76,7 +76,7 @@ namespace Datafordeler.DBIntegrator.Consumer
                                    {
                                         _topicList[topic].Add((JObject)message.Body);
                                    }
-                                   if (_topicList[topic].Count >= 50)
+                                   if (_topicList[topic].Count >= 1000)
                                    {
                                        await (HandleMessages(_topicList[topic], topic, columns));
                                        _topicList[topic].Clear();

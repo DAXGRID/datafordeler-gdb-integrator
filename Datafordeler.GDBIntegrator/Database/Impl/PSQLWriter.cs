@@ -34,7 +34,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             _databaseSetting = databaseSetting.Value;
             _kafkaSetting = kafkaSetting.Value;
             postgisExecuted = false;
-           NpgsqlConnection.GlobalTypeMapper.UseNetTopologySuite();
+            NpgsqlConnection.GlobalTypeMapper.UseNetTopologySuite();
 
         }
 
@@ -47,20 +47,32 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 postgisExecuted = true;
             }
 
+            TryMethod(batch, topic, topic + "_temp", columns);
+
+            /*
+            if (checkTable(topic) == false)
+            {
+                createTable(topic, columns);
+            }
+            */
+
 
             //create temporary table
+            /*
             if (checkTable(topic + "_temp") == false)
             {
-                createTable(topic + "_temp", columns);
-                createTable(topic, columns);
+                createTemporaryTable(topic + "_temp", columns);
+                //createTable(topic + "_temp", columns);
+                //createTable(topic, columns);
             }
             else
             {
                 var objects = checkLatestDataDuplicates(batch);
                 _logger.LogInformation("This is the number of objects " + objects.Count);
                 UpsertData(objects, topic + "_temp", columns);
-                //InsertOnConflict(topic +"_temp", topic, columns);
+                InsertOnConflict(topic + "_temp", topic, columns);
             }
+            */
 
 
         }
@@ -70,6 +82,11 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             string id;
             var mystringBuilder = new StringBuilder();
             var onConflictColumns = new StringBuilder();
+            var createTemporaryTableBuilder = new StringBuilder();
+            var createTableBuilder = new StringBuilder();
+            var copyBuilder = new StringBuilder();
+            GeometryFactory geometryFactory = new GeometryFactory();
+            WKTReader rdr = new WKTReader(geometryFactory);
 
             if (columns.Contains("geo"))
             {
@@ -82,36 +99,155 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
 
             foreach (var column in columns)
             {
+                copyBuilder.Append(column + ",");
+
                 if (column == "position" | column == "roadRegistrationRoadLine" | column == "geo")
                 {
-                    mystringBuilder.Append("ST_GeomFromText(" + tempTable + "." + column + ",25832),");
-                    onConflictColumns.Append(column + " = " + "ST_GeomFromText(EXCLUDED." + column + ",25832),");
+                    createTableBuilder.Append(column + " geometry" + ",");
+                    createTemporaryTableBuilder.Append(column + " geometry" + ",");
+
                 }
                 else
                 {
-                    mystringBuilder.Append(tempTable + "." + column + ",");
-                    onConflictColumns.Append(column + " = " + "EXCLUDED." + column + ",");
+                    createTableBuilder.Append(column + " varchar" + ",");
+                    createTemporaryTableBuilder.Append(column + " varchar" + ",");
 
                 }
+
+
+                mystringBuilder.Append(tempTable + "." + column + ",");
+                onConflictColumns.Append(column + " = " + "EXCLUDED." + column + ",");
+
             }
             mystringBuilder = mystringBuilder.Remove(mystringBuilder.Length - 1, 1);
             onConflictColumns = onConflictColumns.Remove(onConflictColumns.Length - 1, 1);
+            createTemporaryTableBuilder = createTemporaryTableBuilder.Remove(createTableBuilder.Length - 1, 1);
+            copyBuilder = copyBuilder.Remove(copyBuilder.Length - 1, 1);
 
-            string insertCommand = "CREATE PROCEDURE" + topic + "insert()"
-                + " language sql as $$ "
-                + " INSERT INTO " + topic + " SELECT "
-                + mystringBuilder
-                + " FROM " + tempTable
-                + " ON CONFLICT (" + id + ") DO UPDATE "
-                + " SET "
-                + onConflictColumns + ";"
-                + "DROP TABLE " + tempTable + ";";
+            string insertCommand = " INSERT INTO " + topic + " SELECT DISTINCT ON (1) "
+             + mystringBuilder
+             + " FROM " + tempTable
+             + " ON CONFLICT (" + id + ") DO UPDATE "
+             + " SET "
+             + onConflictColumns + ";";
+
+
+            string createTemporaryTable = "Create temporary table " + tempTable + " (" + createTemporaryTableBuilder + " );";
+            string createTable = "Create table IF NOT EXISTS " + topic + " (" + createTableBuilder + " PRIMARY KEY" + " (" + id + ")" + ");";
+
+
+
+            _logger.LogInformation(createTemporaryTable);
+            _logger.LogInformation(createTable);
+
+            using (NpgsqlConnection connection = new NpgsqlConnection(_databaseSetting.ConnectionString))
+            {
+                connection.Open();
+
+                using (NpgsqlCommand command = new NpgsqlCommand(createTemporaryTable, connection))
+                {
+                    command.ExecuteNonQuery();
+                }
+
+                if (checkTable(topic) == false)
+                {
+
+                    using (NpgsqlCommand command = new NpgsqlCommand(createTable, connection))
+                    {
+                        command.ExecuteNonQuery();
+                    }
+                }
+                var objects = checkLatestDataDuplicates(batch);
+
+
+                using (var writer = connection.BeginBinaryImport("COPY " + tempTable + " (" + copyBuilder + ") FROM STDIN (FORMAT BINARY) "))
+                {
+                    foreach (var document in objects)
+                    {
+                        writer.StartRow();
+                        foreach (var column in columns)
+                        {
+                            if (column == "position" | column == "roadRegistrationRoadLine" | column == "geo")
+                            {
+                                rdr.DefaultSRID = 25832;
+                                var c = rdr.Read((string)document[column]);
+                                writer.Write(c);
+                            }
+                            else
+                            {
+                                writer.Write((string)document[column]);
+                            }
+                        }
+                    }
+                    writer.Complete();
+                    objects.Clear();
+                }
+
+                using (NpgsqlCommand command = new NpgsqlCommand(insertCommand, connection))
+                {
+                    command.ExecuteNonQuery();
+                }
+
+
+
+
+            }
 
         }
-            public void DropTable(string table)
+
+        public void createTemporaryTable(string topic, string[] columns)
+        {
+            using (NpgsqlConnection connection = new NpgsqlConnection(_databaseSetting.ConnectionString))
+            {
+                connection.Open();
+
+                StringBuilder mystringBuilder = new StringBuilder();
+                string id;
+                string tableCommandText;
+
+                if (columns.Contains("geo"))
+                {
+                    id = "gml_id";
+                }
+                else
+                {
+                    id = "id_lokalId";
+                }
+
+                foreach (var column in columns)
+                {
+                    if (column == "position" | column == "roadRegistrationRoadLine" | column == "geo")
+                    {
+                        mystringBuilder.Append(column + " geometry" + ",");
+                    }
+                    else
+                    {
+                        mystringBuilder.Append(column + " varchar" + ",");
+                    }
+
+                }
+
+
+                mystringBuilder = mystringBuilder.Remove(mystringBuilder.Length - 1, 1);
+
+                tableCommandText = "Create table IF NOT EXISTS " + topic + " (" + mystringBuilder + ");";
+
+                using (NpgsqlCommand command = new NpgsqlCommand(tableCommandText, connection))
+                {
+                    command.ExecuteNonQuery();
+
+                }
+
+                _logger.LogInformation("Temporary Table " + topic + " created");
+            }
+
+        }
+
+        public void DropTable(string table)
         {
             using (var conn = new NpgsqlConnection(_databaseSetting.ConnectionString))
             {
+                conn.Open();
                 var commandText = "DROP TABLE " + table + ";";
                 using (var command = new NpgsqlCommand(commandText, conn))
                 {
@@ -136,17 +272,10 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
 
             foreach (var column in columns)
             {
-                if (column == "position" | column == "roadRegistrationRoadLine" | column == "geo")
-                {
-                    mystringBuilder.Append("st_geometryfromtext(" + tempTable + "." + column + ",25832),");
-                    onConflictColumns.Append(column + " = " + "st_geometryfromtext(EXCLUDED." + column + ",25832),");
-                }
-                else
-                {
-                    mystringBuilder.Append(tempTable + "." + column + ",");
-                    onConflictColumns.Append(column + " = " + "EXCLUDED." + column + ",");
 
-                }
+                mystringBuilder.Append(tempTable + "." + column + ",");
+                onConflictColumns.Append(column + " = " + "EXCLUDED." + column + ",");
+
             }
             mystringBuilder = mystringBuilder.Remove(mystringBuilder.Length - 1, 1);
             onConflictColumns = onConflictColumns.Remove(onConflictColumns.Length - 1, 1);
@@ -163,7 +292,6 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 + " SET "
                 + onConflictColumns + ";";
 
-                _logger.LogInformation("This is the command " + commandText);
                 using (NpgsqlCommand command = new NpgsqlCommand(commandText, conn))
                 {
                     command.ExecuteNonQuery();
@@ -186,7 +314,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             mystringBuilder = mystringBuilder.Remove(mystringBuilder.Length - 1, 1);
             using (var conn = new NpgsqlConnection(_databaseSetting.ConnectionString))
             {
-               
+
                 conn.Open();
                 using (var writer = conn.BeginBinaryImport("COPY " + topic + " (" + mystringBuilder + ") FROM STDIN (FORMAT BINARY) "))
                 {
@@ -195,7 +323,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                         writer.StartRow();
                         foreach (var column in columns)
                         {
-                            if (column == "position"| column == "roadRegistrationRoadLine" | column == "geo")
+                            if (column == "position" | column == "roadRegistrationRoadLine" | column == "geo")
                             {
                                 rdr.DefaultSRID = 25832;
                                 var c = rdr.Read((string)document[column]);
@@ -268,6 +396,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 //mystringBuilder = mystringBuilder.Remove(mystringBuilder.Length - 1, 1);
 
                 tableCommandText = "Create table IF NOT EXISTS " + topic + " (" + mystringBuilder + " PRIMARY KEY" + " (" + id + ")" + ");";
+                _logger.LogInformation(tableCommandText);
 
                 using (NpgsqlCommand command = new NpgsqlCommand(tableCommandText, connection))
                 {
