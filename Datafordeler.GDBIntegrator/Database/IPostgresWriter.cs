@@ -6,7 +6,6 @@ namespace Datafordeler.GDBIntegrator.Database
 {
     public interface IPostgresWriter
     {
-        void createPostgis();
         
         void createTable(string topic, string[] columns, NpgsqlConnection connection);
         void createTemporaryTable(string topic, string[] columns, NpgsqlConnection connection);
