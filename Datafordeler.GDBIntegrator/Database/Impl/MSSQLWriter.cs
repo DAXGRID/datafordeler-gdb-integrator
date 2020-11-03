@@ -31,8 +31,6 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
 
         public void AddToSql(List<JObject> batch, string topic, string[] columns)
         {
-            //_logger.LogDebug("I wrote some stuff: " + data);
-
             if (checkTable(topic) == false)
             {
                 createTable(topic, columns);
@@ -158,88 +156,94 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             var dictionary = new Dictionary<string, JObject>();
             var list = new List<JObject>();
 
-            foreach (var item in batch)
+            foreach (var currentItem in batch)
             {
-                JObject jobject;
-                if (dictionary.TryGetValue(item["id_lokalId"].ToString(), out jobject))
+                JObject parsedItem;
+                if (dictionary.TryGetValue(currentItem["id_lokalId"]?.ToString(), out parsedItem))
                 {
                     //Set the time variables 
-                    DateTime registrationFrom = DateTime.MinValue;
-                    DateTime itemRegistrationFrom = DateTime.MinValue;
-                    DateTime registrationTo = DateTime.MinValue;
-                    DateTime itemRegistrationTo = DateTime.MinValue;
-                    DateTime effectFrom = DateTime.MinValue;
-                    DateTime itemEffectFrom = DateTime.MinValue;
-                    DateTime effectTo = DateTime.MinValue;
-                    DateTime itemEffectTo = DateTime.MinValue;
+                    var registrationFrom = DateTime.MinValue;
+                    var itemRegistrationFrom = DateTime.MinValue;
+                    var registrationTo = DateTime.MinValue;
+                    var itemRegistrationTo = DateTime.MinValue;
+                    var effectFrom = DateTime.MinValue;
+                    var itemEffectFrom = DateTime.MinValue;
+                    var effectTo = DateTime.MinValue;
+                    var itemEffectTo = DateTime.MinValue;
 
-                    //Check if it contains the null string 
-                    if (jobject["registrationFrom"].ToString() != "null") // string.IsNullOrEmpty if on .NET pre 4.0
+                    bool CheckIfNull(JObject jObject, string key)
                     {
-                        registrationFrom = DateTime.Parse(jobject["registrationFrom"].ToString());
+                        return jObject[key] !is null && jObject[key].ToString() != "null";
                     }
 
-                    if (item["registrationFrom"].ToString() != "null") // string.IsNullOrEmpty if on .NET pre 4.0
+                    //Check if it contains the null string
+                    // TODO here replace with CheckIfNull
+                    if (CheckIfNull(parsedItem, "registrationFrom"))
                     {
-                        itemRegistrationFrom = DateTime.Parse(item["registrationFrom"].ToString());
+                        registrationFrom = DateTime.Parse(parsedItem["registrationFrom"].ToString());
                     }
 
-                    if (jobject["registrationTo"].ToString() != "null") // string.IsNullOrEmpty if on .NET pre 4.0
+                    if (currentItem["registrationFrom"]?.ToString() != "null")
                     {
-                        registrationTo = DateTime.Parse(jobject["registrationTo"].ToString());
+                        itemRegistrationFrom = DateTime.Parse(currentItem["registrationFrom"].ToString());
                     }
 
-                    if (item["registrationTo"].ToString() != "null") // string.IsNullOrEmpty if on .NET pre 4.0
+                    if (parsedItem["registrationTo"].ToString() != "null")
                     {
-                        itemRegistrationTo = DateTime.Parse(item["registrationTo"].ToString());
+                        registrationTo = DateTime.Parse(parsedItem["registrationTo"].ToString());
                     }
 
-                    if (jobject["effectFrom"].ToString() != "null") // string.IsNullOrEmpty if on .NET pre 4.0
+                    if (currentItem["registrationTo"].ToString() != "null")
                     {
-                        effectFrom = DateTime.Parse(jobject["effectFrom"].ToString());
+                        itemRegistrationTo = DateTime.Parse(currentItem["registrationTo"].ToString());
                     }
 
-                    if (item["effectFrom"].ToString() != "null") // string.IsNullOrEmpty if on .NET pre 4.0
+                    if (parsedItem["effectFrom"].ToString() != "null")
                     {
-                        itemEffectFrom = DateTime.Parse(item["effectFrom"].ToString());
+                        effectFrom = DateTime.Parse(parsedItem["effectFrom"].ToString());
                     }
 
-                    if (jobject["effectTo"].ToString() != "null") // string.IsNullOrEmpty if on .NET pre 4.0
+                    if (currentItem["effectFrom"].ToString() != "null")
                     {
-                        effectTo = DateTime.Parse(jobject["effectTo"].ToString());
+                        itemEffectFrom = DateTime.Parse(currentItem["effectFrom"].ToString());
                     }
 
-                    if (item["effectTo"].ToString() != "null") // string.IsNullOrEmpty if on .NET pre 4.0
+                    if (parsedItem["effectTo"].ToString() != "null")
                     {
-                        itemEffectTo = DateTime.Parse(item["effectTo"].ToString());
+                        effectTo = DateTime.Parse(parsedItem["effectTo"].ToString());
+                    }
+
+                    if (currentItem["effectTo"].ToString() != "null")
+                    {
+                        itemEffectTo = DateTime.Parse(currentItem["effectTo"].ToString());
                     }
 
 
                     //Compare the date time values and return only the latest
                     if (registrationFrom < itemRegistrationFrom)
                     {
-                        dictionary[item["id_lokalId"].ToString()] = item;
+                        dictionary[currentItem["id_lokalId"].ToString()] = currentItem;
 
                     }
                     else if (registrationFrom == itemRegistrationFrom)
                     {
                         if (registrationTo < itemRegistrationTo)
                         {
-                            dictionary[item["id_lokalId"].ToString()] = item;
+                            dictionary[currentItem["id_lokalId"].ToString()] = currentItem;
 
                         }
                         else if (registrationTo == itemRegistrationTo)
                         {
                             if (effectFrom < itemEffectFrom)
                             {
-                                dictionary[item["id_lokalId"].ToString()] = item;
+                                dictionary[currentItem["id_lokalId"].ToString()] = currentItem;
 
                             }
                             else if (effectFrom == itemEffectFrom)
                             {
                                 if (effectTo < itemEffectTo)
                                 {
-                                    dictionary[item["id_lokalId"].ToString()] = item;
+                                    dictionary[currentItem["id_lokalId"].ToString()] = currentItem;
 
                                 }
                             }
@@ -248,7 +252,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 }
                 else
                 {
-                    dictionary[item["id_lokalId"].ToString()] = item;
+                    dictionary[currentItem["id_lokalId"].ToString()] = currentItem;
                 }
             }
             //Add in the list only the objects with the latest date
