@@ -4,13 +4,11 @@ using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Data;
 using Newtonsoft.Json.Linq;
 using System.Linq;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.IO;
 using Npgsql;
-using Npgsql.NetTopologySuite;
 
 namespace Datafordeler.GDBIntegrator.Database.Impl
 {
@@ -31,12 +29,10 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             _databaseSetting = databaseSetting.Value;
             _kafkaSetting = kafkaSetting.Value;
             NpgsqlConnection.GlobalTypeMapper.UseNetTopologySuite();
-
         }
 
         public void AddToPSQL(List<JObject> batch, string topic, string[] columns)
         {
-
             using (NpgsqlConnection connection = new NpgsqlConnection(_databaseSetting.ConnectionString))
             {
                 connection.Open();
@@ -46,7 +42,6 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 UpsertData(objects, topic+"_temp", columns, connection);
                 InsertOnConflict(topic+"_temp",topic,columns,connection);
             }
-
         }
 
         public void createTemporaryTable(string topic, string[] columns, NpgsqlConnection connection)
@@ -54,10 +49,9 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             StringBuilder mystringBuilder = new StringBuilder();
             string tableCommandText;
 
-
             foreach (var column in columns)
             {
-                if (column == "position" | column == "roadRegistrationRoadLine" | column == "geo")
+                if (column == "position" || column == "roadRegistrationRoadLine" || column == "geo")
                 {
                     mystringBuilder.Append(column + " geometry" + ",");
                 }
@@ -65,9 +59,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 {
                     mystringBuilder.Append(column + " varchar" + ",");
                 }
-
             }
-
 
             mystringBuilder = mystringBuilder.Remove(mystringBuilder.Length - 1, 1);
 
@@ -76,11 +68,9 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             using (NpgsqlCommand command = new NpgsqlCommand(tableCommandText, connection))
             {
                 command.ExecuteNonQuery();
-
             }
 
             _logger.LogInformation("Temporary Table " + topic + " created");
-
         }
 
         public void InsertOnConflict(string tempTable, string table, string[] columns, NpgsqlConnection conn)
@@ -100,11 +90,10 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
 
             foreach (var column in columns)
             {
-
                 mystringBuilder.Append(tempTable + "." + column + ",");
                 onConflictColumns.Append(column + " = " + "EXCLUDED." + column + ",");
-
             }
+
             mystringBuilder = mystringBuilder.Remove(mystringBuilder.Length - 1, 1);
             onConflictColumns = onConflictColumns.Remove(onConflictColumns.Length - 1, 1);
 
@@ -144,6 +133,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                     {
                         if (column == "position" | column == "roadRegistrationRoadLine" | column == "geo")
                         {
+                            // TODO add environment variable
                             rdr.DefaultSRID = 25832;
                             var c = rdr.Read((string)document[column]);
                             writer.Write(c);
@@ -154,27 +144,14 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                         }
                     }
                 }
+
                 writer.Complete();
                 batch.Clear();
             }
-
         }
 
-        public void createPostgis()
-        {
-            using (NpgsqlConnection connection = new NpgsqlConnection(_databaseSetting.ConnectionString))
-            {
-                connection.Open();
-                string tableCommandText = "Create extension postgis";
-                using (NpgsqlCommand command = new NpgsqlCommand(tableCommandText, connection))
-                {
-                    command.ExecuteNonQuery();
-                }
-            }
-        }
         public void createTable(string topic, string[] columns, NpgsqlConnection connection)
         {
-
             StringBuilder mystringBuilder = new StringBuilder();
             string id;
             string tableCommandText;
@@ -203,11 +180,9 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                     else
                     {
                         mystringBuilder.Append(column + " varchar" + ",");
-
                     }
                 }
             }
-
 
             tableCommandText = "Create table IF NOT EXISTS " + topic + " (" + mystringBuilder + " PRIMARY KEY" + " (" + id + ")" + ");";
             _logger.LogInformation(tableCommandText);
@@ -215,12 +190,9 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             using (NpgsqlCommand command = new NpgsqlCommand(tableCommandText, connection))
             {
                 command.ExecuteNonQuery();
-
             }
 
             _logger.LogInformation("Table " + topic + " created");
-
-
         }
 
         public List<JObject> checkLatestDataDuplicates(List<JObject> batch)
@@ -296,7 +268,6 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                         if (registrationTo < itemRegistrationTo)
                         {
                             dictionary[item["id_lokalId"].ToString()] = item;
-
                         }
                         else if (registrationTo == itemRegistrationTo)
                         {
@@ -321,14 +292,14 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                     dictionary[item["id_lokalId"].ToString()] = item;
                 }
             }
+
             //Add in the list only the objects with the latest date
             foreach (var d in dictionary)
             {
                 list.Add(d.Value);
             }
+
             return list;
-
         }
-
     }
 }
