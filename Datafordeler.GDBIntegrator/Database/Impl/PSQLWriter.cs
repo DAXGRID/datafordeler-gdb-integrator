@@ -61,11 +61,15 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             }
 
             tableColumns = tableColumns.Remove(tableColumns.Length - 1, 1);
+            var tableColumnsText = tableColumns.ToString();
 
-            var tableCommandText = "Create temporary table " + topic + " (" + tableColumns + ");";
+            var tableCommandText = @$"Create temporary table  {topic}  (  {tableColumns} );";
+
+          
 
             using (NpgsqlCommand command = new NpgsqlCommand(tableCommandText, connection))
             {
+         
                 command.ExecuteNonQuery();
             }
 
@@ -96,12 +100,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             tempColumns = tempColumns.Remove(tempColumns.Length - 1, 1);
             onConflictColumns = onConflictColumns.Remove(onConflictColumns.Length - 1, 1);
 
-            var commandText = " INSERT INTO " + table + " SELECT DISTINCT ON (1) "
-            + tempColumns
-            + " FROM " + tempTable
-            + " ON CONFLICT (" + id + ") DO UPDATE "
-            + " SET "
-            + onConflictColumns + ";";
+        var commandText = @$" INSERT INTO  {table}  SELECT DISTINCT ON (1)  {tempColumns} FROM   {tempTable}  ON CONFLICT ( {id}  ) DO UPDATE  SET  {onConflictColumns}  ;";
 
             using (var command = new NpgsqlCommand(commandText, conn))
             {
@@ -122,7 +121,9 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             }
             tableColumns = tableColumns.Remove(tableColumns.Length - 1, 1);
 
-            using (var writer = conn.BeginBinaryImport("COPY " + topic + " (" + tableColumns + ") FROM STDIN (FORMAT BINARY) "))
+            var comand = @$"COPY  {topic}   (  {tableColumns} ) FROM STDIN (FORMAT BINARY)";
+
+            using (var writer = conn.BeginBinaryImport(comand))
             {
                 foreach (var document in batch)
                 {
@@ -176,7 +177,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
 
             }
 
-            var tableCommandText = "Create table IF NOT EXISTS " + topic + " (" + tableColumns + " PRIMARY KEY" + " (" + id + ")" + ");";
+            var tableCommandText = @$"Create table IF NOT EXISTS   {topic}   (  {tableColumns}  PRIMARY KEY   (  {id} ) );";
             _logger.LogInformation(tableCommandText);
 
             using (NpgsqlCommand command = new NpgsqlCommand(tableCommandText, connection))
