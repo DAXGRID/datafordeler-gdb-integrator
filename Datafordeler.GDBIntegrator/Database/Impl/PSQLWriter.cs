@@ -20,9 +20,6 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
         private readonly DatabaseSetting _databaseSetting;
         private readonly KafkaSetting _kafkaSetting;
         private bool postgisExecuted;
-        private bool tableCreated;
-
-        private bool dataInserted;
 
         public PSQLWriter(
            ILogger<PSQLWriter> logger,
@@ -33,21 +30,12 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             _logger = logger;
             _databaseSetting = databaseSetting.Value;
             _kafkaSetting = kafkaSetting.Value;
-            postgisExecuted = false;
             NpgsqlConnection.GlobalTypeMapper.UseNetTopologySuite();
 
         }
 
         public void AddToPSQL(List<JObject> batch, string topic, string[] columns)
         {
-
-            if (postgisExecuted == false)
-            {
-                //createPostgis();
-                postgisExecuted = true;
-            }
-
-            //TryMethod(batch, topic, topic + "_temp", columns);
 
             using (NpgsqlConnection connection = new NpgsqlConnection(_databaseSetting.ConnectionString))
             {
@@ -63,20 +51,9 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
 
         public void createTemporaryTable(string topic, string[] columns, NpgsqlConnection connection)
         {
-
-
             StringBuilder mystringBuilder = new StringBuilder();
-            string id;
             string tableCommandText;
 
-            if (columns.Contains("geo"))
-            {
-                id = "gml_id";
-            }
-            else
-            {
-                id = "id_lokalId";
-            }
 
             foreach (var column in columns)
             {
@@ -106,18 +83,6 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
 
         }
 
-        public void DropTable(string table)
-        {
-            using (var conn = new NpgsqlConnection(_databaseSetting.ConnectionString))
-            {
-                conn.Open();
-                var commandText = "DROP TABLE " + table + ";";
-                using (var command = new NpgsqlCommand(commandText, conn))
-                {
-                    command.ExecuteNonQuery();
-                }
-            }
-        }
         public void InsertOnConflict(string tempTable, string table, string[] columns, NpgsqlConnection conn)
         {
             string id;
@@ -243,7 +208,6 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 }
             }
 
-            //mystringBuilder = mystringBuilder.Remove(mystringBuilder.Length - 1, 1);
 
             tableCommandText = "Create table IF NOT EXISTS " + topic + " (" + mystringBuilder + " PRIMARY KEY" + " (" + id + ")" + ");";
             _logger.LogInformation(tableCommandText);
