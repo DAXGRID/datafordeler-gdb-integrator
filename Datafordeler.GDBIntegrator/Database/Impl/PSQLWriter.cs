@@ -36,34 +36,33 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             using (NpgsqlConnection connection = new NpgsqlConnection(_databaseSetting.ConnectionString))
             {
                 connection.Open();
-                createTemporaryTable(topic+"_temp", columns, connection);
+                createTemporaryTable(topic + "_temp", columns, connection);
                 createTable(topic, columns, connection);
                 var objects = checkLatestDataDuplicates(batch);
-                UpsertData(objects, topic+"_temp", columns, connection);
-                InsertOnConflict(topic+"_temp",topic,columns,connection);
+                UpsertData(objects, topic + "_temp", columns, connection);
+                InsertOnConflict(topic + "_temp", topic, columns, connection);
             }
         }
 
         public void createTemporaryTable(string topic, string[] columns, NpgsqlConnection connection)
         {
-            StringBuilder mystringBuilder = new StringBuilder();
-            string tableCommandText;
+            var tableColumns = new StringBuilder();
 
             foreach (var column in columns)
             {
                 if (column == "position" || column == "roadRegistrationRoadLine" || column == "geo")
                 {
-                    mystringBuilder.Append(column + " geometry" + ",");
+                    tableColumns.Append(column + " geometry" + ",");
                 }
                 else
                 {
-                    mystringBuilder.Append(column + " varchar" + ",");
+                    tableColumns.Append(column + " varchar" + ",");
                 }
             }
 
-            mystringBuilder = mystringBuilder.Remove(mystringBuilder.Length - 1, 1);
+            tableColumns = tableColumns.Remove(tableColumns.Length - 1, 1);
 
-            tableCommandText = "Create temporary table " + topic + " (" + mystringBuilder + ");";
+            var tableCommandText = "Create temporary table " + topic + " (" + tableColumns + ");";
 
             using (NpgsqlCommand command = new NpgsqlCommand(tableCommandText, connection))
             {
@@ -76,7 +75,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
         public void InsertOnConflict(string tempTable, string table, string[] columns, NpgsqlConnection conn)
         {
             string id;
-            var mystringBuilder = new StringBuilder();
+            var tempColumns = new StringBuilder();
             var onConflictColumns = new StringBuilder();
 
             if (columns.Contains("geo"))
@@ -90,41 +89,40 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
 
             foreach (var column in columns)
             {
-                mystringBuilder.Append(tempTable + "." + column + ",");
+                tempColumns.Append(tempTable + "." + column + ",");
                 onConflictColumns.Append(column + " = " + "EXCLUDED." + column + ",");
             }
 
-            mystringBuilder = mystringBuilder.Remove(mystringBuilder.Length - 1, 1);
+            tempColumns = tempColumns.Remove(tempColumns.Length - 1, 1);
             onConflictColumns = onConflictColumns.Remove(onConflictColumns.Length - 1, 1);
 
-            string commandText = " INSERT INTO " + table + " SELECT DISTINCT ON (1) "
-            + mystringBuilder
+            var commandText = " INSERT INTO " + table + " SELECT DISTINCT ON (1) "
+            + tempColumns
             + " FROM " + tempTable
             + " ON CONFLICT (" + id + ") DO UPDATE "
             + " SET "
             + onConflictColumns + ";";
 
-            using (NpgsqlCommand command = new NpgsqlCommand(commandText, conn))
+            using (var command = new NpgsqlCommand(commandText, conn))
             {
                 command.ExecuteNonQuery();
             }
         }
         public void UpsertData(List<JObject> batch, string topic, string[] columns, NpgsqlConnection conn)
         {
-            StringBuilder mystringBuilder = new StringBuilder();
-            GeometryFactory geometryFactory = new GeometryFactory();
-            WKTReader rdr = new WKTReader(geometryFactory);
+            var tableColumns = new StringBuilder();
+            var geometryFactory = new GeometryFactory();
+            var rdr = new WKTReader(geometryFactory);
 
             foreach (var column in columns)
             {
 
-                mystringBuilder.Append(column + ",");
-
+                tableColumns.Append(column + ",");
 
             }
-            mystringBuilder = mystringBuilder.Remove(mystringBuilder.Length - 1, 1);
+            tableColumns = tableColumns.Remove(tableColumns.Length - 1, 1);
 
-            using (var writer = conn.BeginBinaryImport("COPY " + topic + " (" + mystringBuilder + ") FROM STDIN (FORMAT BINARY) "))
+            using (var writer = conn.BeginBinaryImport("COPY " + topic + " (" + tableColumns + ") FROM STDIN (FORMAT BINARY) "))
             {
                 foreach (var document in batch)
                 {
@@ -152,9 +150,8 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
 
         public void createTable(string topic, string[] columns, NpgsqlConnection connection)
         {
-            StringBuilder mystringBuilder = new StringBuilder();
+            var tableColumns = new StringBuilder();
             string id;
-            string tableCommandText;
 
             if (columns.Contains("geo"))
             {
@@ -167,24 +164,19 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
 
             foreach (var column in columns)
             {
-                if (topic.Contains("temp"))
+
+                if (column == "position" | column == "roadRegistrationRoadLine" | column == "geo")
                 {
-                    mystringBuilder.Append(column + " varchar" + ",");
+                    tableColumns.Append(column + " geometry" + ",");
                 }
                 else
                 {
-                    if (column == "position" | column == "roadRegistrationRoadLine" | column == "geo")
-                    {
-                        mystringBuilder.Append(column + " geometry" + ",");
-                    }
-                    else
-                    {
-                        mystringBuilder.Append(column + " varchar" + ",");
-                    }
+                    tableColumns.Append(column + " varchar" + ",");
                 }
+
             }
 
-            tableCommandText = "Create table IF NOT EXISTS " + topic + " (" + mystringBuilder + " PRIMARY KEY" + " (" + id + ")" + ");";
+            var tableCommandText = "Create table IF NOT EXISTS " + topic + " (" + tableColumns + " PRIMARY KEY" + " (" + id + ")" + ");";
             _logger.LogInformation(tableCommandText);
 
             using (NpgsqlCommand command = new NpgsqlCommand(tableCommandText, connection))
