@@ -8,5 +8,6 @@ namespace Datafordeler.DBIntegrator.Config
     {
         public string DatabaseKind { get; set; }
         public string ConnectionString { get; set; }
+        public int GeoSRID {get;set;}
     }
 }

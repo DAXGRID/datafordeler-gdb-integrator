@@ -111,5 +111,6 @@ services:
       KAFKA__VALUES__NavngivenVejList: id_lokalId,roadName,roadRegistrationRoadLine
       KAFKA__POSITIONFILEPATH: /tmp/
       DATABASE__DATABASEKIND: MSSQL
+      DATABASE__GEOSRID: 25832
       DATABASE__CONNECTIONSTRING: Host=postgres;Username=postgres;Password=postgres;Database=gis;
       

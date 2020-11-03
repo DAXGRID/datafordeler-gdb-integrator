@@ -133,7 +133,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                         if (column == "position" | column == "roadRegistrationRoadLine" | column == "geo")
                         {
                             // TODO add environment variable
-                            rdr.DefaultSRID = 25832;
+                            rdr.DefaultSRID = _databaseSetting.GeoSRID;
                             var c = rdr.Read((string)document[column]);
                             writer.Write(c);
                         }
