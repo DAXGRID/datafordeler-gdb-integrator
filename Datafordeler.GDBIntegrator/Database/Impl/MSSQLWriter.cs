@@ -8,7 +8,6 @@ using System.Data.SqlClient;
 using System.Data;
 using Newtonsoft.Json.Linq;
 using System.Linq;
-using NetTopologySuite.Geometries;
 
 namespace Datafordeler.GDBIntegrator.Database.Impl
 {

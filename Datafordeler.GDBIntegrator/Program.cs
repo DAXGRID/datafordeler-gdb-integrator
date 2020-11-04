@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Datafordeler.DBIntegrator.Config;
 using Datafordeler.DBIntegrator.Consumer;
 using Datafordeler.GDBIntegrator.Database;

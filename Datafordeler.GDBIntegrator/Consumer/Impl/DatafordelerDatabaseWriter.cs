@@ -6,10 +6,8 @@ using Microsoft.Extensions.Options;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading.Tasks;
 using Topos.Config;
-using System.Linq;
 
 
 namespace Datafordeler.DBIntegrator.Consumer
@@ -45,7 +43,7 @@ namespace Datafordeler.DBIntegrator.Consumer
 
         public void Start()
         {   
-            List<JObject> list = new List<JObject>();
+            var list = new List<JObject>();
             var kafka = _kafkaSetting.Values;
             if (kafka != null)
             {
@@ -95,8 +93,7 @@ namespace Datafordeler.DBIntegrator.Consumer
 
         private async Task HandleMessages(List<JObject> list, string topic, string[] columns)
         {
-            //_databaseWriter.AddToSql(list, topic, columns);
-            _postgresWriter.AddToPSQL(list,topic,columns);
+             _postgresWriter.AddToPSQL(list,topic,columns);
             
         }
 
