@@ -44,7 +44,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             }
         }
 
-        public void createTemporaryTable(string topic, string[] columns, NpgsqlConnection connection)
+        private void createTemporaryTable(string topic, string[] columns, NpgsqlConnection connection)
         {
             var tableColumns = new StringBuilder();
 
@@ -76,7 +76,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             _logger.LogInformation("Temporary Table " + topic + " created");
         }
 
-        public void InsertOnConflict(string tempTable, string table, string[] columns, NpgsqlConnection conn)
+        private void InsertOnConflict(string tempTable, string table, string[] columns, NpgsqlConnection conn)
         {
             string id;
             var tempColumns = new StringBuilder();
@@ -107,7 +107,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 command.ExecuteNonQuery();
             }
         }
-        public void UpsertData(List<JObject> batch, string topic, string[] columns, NpgsqlConnection conn)
+        private void UpsertData(List<JObject> batch, string topic, string[] columns, NpgsqlConnection conn)
         {
             var tableColumns = new StringBuilder();
             var geometryFactory = new GeometryFactory();
@@ -149,7 +149,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             }
         }
 
-        public void createTable(string topic, string[] columns, NpgsqlConnection connection)
+        private void createTable(string topic, string[] columns, NpgsqlConnection connection)
         {
             var tableColumns = new StringBuilder();
             string id;
@@ -188,7 +188,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             _logger.LogInformation("Table " + topic + " created");
         }
 
-        public List<JObject> checkLatestDataDuplicates(List<JObject> batch)
+        private List<JObject> checkLatestDataDuplicates(List<JObject> batch)
         {
             var dictionary = new Dictionary<string, JObject>();
             var list = new List<JObject>();
