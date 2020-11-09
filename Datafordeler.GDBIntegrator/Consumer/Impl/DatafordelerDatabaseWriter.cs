@@ -51,7 +51,7 @@ namespace Datafordeler.DBIntegrator.Consumer
                 foreach (var obj in kafka)
                 {
                     var topic = obj;
-
+                    _logger.LogInformation(topic);
                     var consumer = _consumer = Configure
                        .Consumer(topic, c => c.UseKafka(_kafkaSetting.Server))
                        .Serialization(s => s.DatafordelerEventDeserializer())
@@ -62,6 +62,7 @@ namespace Datafordeler.DBIntegrator.Consumer
 
                            foreach (var message in messages)
                            {
+                              
                                if (message.Body is JObject)
                                {
                                    if (!_topicList.ContainsKey(topic))
