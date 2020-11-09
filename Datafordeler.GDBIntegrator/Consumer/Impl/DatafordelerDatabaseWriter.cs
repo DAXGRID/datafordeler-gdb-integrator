@@ -76,8 +76,6 @@ namespace Datafordeler.DBIntegrator.Consumer
                                    }
                                    if (_topicList[topic].Count >= 10000)
                                    {
-
-                                       //await (HandleMessages(_topicList[topic], topic, columns));
                                        foreach (var obj in _databaseSetting.Values)
                                        {
                                            var tableName = obj.Key;
@@ -89,7 +87,6 @@ namespace Datafordeler.DBIntegrator.Consumer
                                    }
                                }
                            }
-                           //await (HandleMessages(_topicList[topic], topic, columns));
                            foreach (var obj in _databaseSetting.Values)
                            {
                                var tableName = obj.Key;
