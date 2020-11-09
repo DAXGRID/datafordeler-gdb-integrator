@@ -38,9 +38,18 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 connection.Open();
                 createTemporaryTable(topic + "_temp", columns, connection);
                 createTable(topic, columns, connection);
-                var objects = checkLatestDataDuplicates(batch);
-                UpsertData(objects, topic + "_temp", columns, connection);
-                InsertOnConflict(topic + "_temp", topic, columns, connection);
+                if (columns.Contains("geo"))
+                {
+                    UpsertData(batch, topic + "_temp", columns, connection);
+                    InsertOnConflict(topic + "_temp", topic, columns, connection);
+                }
+                else
+                {
+                    var objects = checkLatestDataDuplicates(batch);
+                    UpsertData(objects, topic + "_temp", columns, connection);
+                    InsertOnConflict(topic + "_temp", topic, columns, connection);
+                }
+
             }
         }
 
@@ -65,11 +74,11 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
 
             var tableCommandText = @$"Create temporary table  {topic}  (  {tableColumns} );";
 
-          
+
 
             using (NpgsqlCommand command = new NpgsqlCommand(tableCommandText, connection))
             {
-         
+
                 command.ExecuteNonQuery();
             }
 
@@ -100,7 +109,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             tempColumns = tempColumns.Remove(tempColumns.Length - 1, 1);
             onConflictColumns = onConflictColumns.Remove(onConflictColumns.Length - 1, 1);
 
-        var commandText = @$" INSERT INTO  {table}  SELECT DISTINCT ON (1)  {tempColumns} FROM   {tempTable}  ON CONFLICT ( {id}  ) DO UPDATE  SET  {onConflictColumns}  ;";
+            var commandText = @$" INSERT INTO  {table}  SELECT DISTINCT ON (1)  {tempColumns} FROM   {tempTable}  ON CONFLICT ( {id}  ) DO UPDATE  SET  {onConflictColumns}  ;";
 
             using (var command = new NpgsqlCommand(commandText, conn))
             {
@@ -233,12 +242,12 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                         itemRegistrationTo = DateTime.Parse(currentItem["registrationTo"].ToString());
                     }
 
-                     if (CheckIfNull(parsedItem, "effectFrom"))
+                    if (CheckIfNull(parsedItem, "effectFrom"))
                     {
                         effectFrom = DateTime.Parse(parsedItem["effectFrom"].ToString());
                     }
 
-                       if (CheckIfNull(currentItem, "effectFrom"))
+                    if (CheckIfNull(currentItem, "effectFrom"))
                     {
                         itemEffectFrom = DateTime.Parse(currentItem["effectFrom"].ToString());
                     }
