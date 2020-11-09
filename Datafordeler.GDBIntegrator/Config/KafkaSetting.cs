@@ -10,11 +10,7 @@ namespace Datafordeler.DBIntegrator.Config
         public string PositionFilePath { get; set; }
         public string DatafordelereTopic { get; set; }
 
-        public Dictionary<string,string> Values 
-        {
-            get;
-            set;
-        } 
+        
 
     }
 }

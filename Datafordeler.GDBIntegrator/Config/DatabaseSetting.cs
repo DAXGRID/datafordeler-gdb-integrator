@@ -9,5 +9,10 @@ namespace Datafordeler.DBIntegrator.Config
         public string DatabaseKind { get; set; }
         public string ConnectionString { get; set; }
         public int GeoSRID {get;set;}
+        public Dictionary<string,string> Values 
+        {
+            get;
+            set;
+        } 
     }
 }

@@ -44,14 +44,13 @@ namespace Datafordeler.DBIntegrator.Consumer
         public void Start()
         {   
             var list = new List<JObject>();
-            var kafka = _kafkaSetting.Values;
+            var kafka = _kafkaSetting.DatafordelereTopic.Split(",");
             if (kafka != null)
             {
 
                 foreach (var obj in kafka)
                 {
-                    var topic = obj.Key;
-                    var columns = obj.Value.Split(",");
+                    var topic = obj;
                     var consumer = _consumer = Configure
                        .Consumer(topic, c => c.UseKafka(_kafkaSetting.Server))
                        .Serialization(s => s.DatafordelerEventDeserializer())
@@ -64,7 +63,7 @@ namespace Datafordeler.DBIntegrator.Consumer
                            {
                                if (message.Body is JObject)
                                {
-
+                                   _logger.LogInformation(message.Body.ToString());
                                    if(!_topicList.ContainsKey(topic))
                                    {
                                        _topicList.Add(topic,new List<JObject>());
@@ -76,12 +75,12 @@ namespace Datafordeler.DBIntegrator.Consumer
                                    }
                                    if (_topicList[topic].Count >= 1000)
                                    {
-                                       await (HandleMessages(_topicList[topic], topic, columns));
+                                       //await (HandleMessages(_topicList[topic], topic, columns));
                                        _topicList[topic].Clear();
                                    }
                                }
                            }
-                           await (HandleMessages(_topicList[topic], topic, columns));
+                           //await (HandleMessages(_topicList[topic], topic, columns));
                             _topicList[topic].Clear();
                        }).Start();
 
