@@ -42,7 +42,7 @@ namespace Datafordeler.DBIntegrator.Consumer
         }
 
         public void Start()
-        {   
+        {
             var list = new List<JObject>();
             var kafka = _kafkaSetting.DatafordelereTopic.Split(",");
             if (kafka != null)
@@ -51,6 +51,7 @@ namespace Datafordeler.DBIntegrator.Consumer
                 foreach (var obj in kafka)
                 {
                     var topic = obj;
+
                     var consumer = _consumer = Configure
                        .Consumer(topic, c => c.UseKafka(_kafkaSetting.Server))
                        .Serialization(s => s.DatafordelerEventDeserializer())
@@ -63,25 +64,39 @@ namespace Datafordeler.DBIntegrator.Consumer
                            {
                                if (message.Body is JObject)
                                {
-                                   _logger.LogInformation(message.Body.ToString());
-                                   if(!_topicList.ContainsKey(topic))
+                                   if (!_topicList.ContainsKey(topic))
                                    {
-                                       _topicList.Add(topic,new List<JObject>());
-                                        _topicList[topic].Add((JObject)message.Body);
+                                       _topicList.Add(topic, new List<JObject>());
+                                       _topicList[topic].Add((JObject)message.Body);
                                    }
                                    else
                                    {
-                                        _topicList[topic].Add((JObject)message.Body);
+                                       _topicList[topic].Add((JObject)message.Body);
                                    }
-                                   if (_topicList[topic].Count >= 1000)
+                                   if (_topicList[topic].Count >= 10000)
                                    {
+
                                        //await (HandleMessages(_topicList[topic], topic, columns));
+                                       foreach (var obj in _databaseSetting.Values)
+                                       {
+                                           var tableName = obj.Key;
+                                           var columns = obj.Value.Split(",");
+                                           var batch = CheckObjectType(_topicList[topic], tableName);
+                                           await HandleMessages(batch, tableName, columns);
+                                       }
                                        _topicList[topic].Clear();
                                    }
                                }
                            }
                            //await (HandleMessages(_topicList[topic], topic, columns));
-                            _topicList[topic].Clear();
+                           foreach (var obj in _databaseSetting.Values)
+                           {
+                               var tableName = obj.Key;
+                               var columns = obj.Value.Split(",");
+                               var batch = CheckObjectType(_topicList[topic], tableName);
+                               await HandleMessages(batch, tableName, columns);
+                           }
+                           _topicList[topic].Clear();
                        }).Start();
 
                     _consumers.Add(consumer);
@@ -92,8 +107,23 @@ namespace Datafordeler.DBIntegrator.Consumer
 
         private async Task HandleMessages(List<JObject> list, string topic, string[] columns)
         {
-             _postgresWriter.AddToPSQL(list,topic,columns);
-            
+            _postgresWriter.AddToPSQL(list, topic, columns);
+
+        }
+
+        private List<JObject> CheckObjectType(List<JObject> items, string tableName)
+        {
+            var batch = new List<JObject>();
+
+            foreach (var item in items)
+            {
+                if (item["type"].ToString() == tableName)
+                {
+                    batch.Add(item);
+                }
+            }
+
+            return batch;
         }
 
         public void Dispose()
