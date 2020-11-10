@@ -24,6 +24,8 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 100
+      KAFKA_LOG_RETENTION_BYTES: 1000000
+      KAFKA_LOG_RETENTION_MS: 30000
   
   mssql:
     # *-----------------------------*
@@ -81,9 +83,9 @@ services:
       APPSETTINGS__GEOUSERNAME: PCVZLGPTJE
       APPSETTINGS__GEOPASSWORD: sWRbn2M8y2tH!
       APPSETTINGS__GEOUNZIPPATH: datafordeleren/geo
-      APPSETTINGS__ GEOGMLPATH: datafordeleren/geo/geogml
+      APPSETTINGS__GEOGMLPATH: datafordeleren/geo/geogml
       APPSETTINGS__GEOPROCESSEDPATH: datafordeleren/geo
-      APPSETTINGS__GEOFIELDLIST: trae
+      APPSETTINGS__GEOFIELDLIST: trae,bygning,vejkant
       APPSETTINGS__ADRESSTOPICNAME: DAR
       APPSETTINGS__GEODATATOPICNAME: GEODATA
       APPSETTINGS__KAFKABOOTSTRAPSERVER: kafka0:29092
@@ -115,6 +117,8 @@ services:
       DATABASE__VALUES__HusnummerList: id_lokalId,status,houseNumberText,accessAddressDescription,position
       DATABASE__VALUES__NavngivenVejList: id_lokalId,roadName,roadRegistrationRoadLine
       DATABASE__VALUES__trae: gml_id,id_lokalId,geo,type
+      DATABASE__VALUES__bygning: gml_id,id_lokalId,geo,type
+      DATABASE__VALUES__vejkant: gml_id,id_lokalId,geo,type
       DATABASE__GEOSRID: 25832
       DATABASE__CONNECTIONSTRING: Host=postgres;Username=postgres;Password=postgres;Database=gis;
       
