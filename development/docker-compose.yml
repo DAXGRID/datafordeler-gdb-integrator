@@ -82,12 +82,17 @@ services:
       APPSETTINGS__ADRESSPASSWORD: 
       APPSETTINGS__GEOUSERNAME: 
       APPSETTINGS__GEOPASSWORD: 
+      APPSETTINGS__BBRUSERNAME: DUDKCVTSEM
+      APPSETTINGS__BBRPASSWORD: Gt5fRbdKDBxhjxx!
+      APPSETTINGS__BBRUNZIPPATH: datafordeleren/bbr
+      APPSETTINGS__BBRPROCESSEDPATH: datafordeleren/newbbr
       APPSETTINGS__GEOUNZIPPATH: datafordeleren/geo
       APPSETTINGS__GEOGMLPATH: datafordeleren/geo/geogml
-      APPSETTINGS__GEOPROCESSEDPATH: datafordeleren/geo
-      APPSETTINGS__GEOFIELDLIST: trae,bygning,vejkant
+      APPSETTINGS__GEOPROCESSEDPATH: datafordeleren/newgeo
+      APPSETTINGS__GEOFIELDLIST: trae
       APPSETTINGS__ADRESSTOPICNAME: DAR
       APPSETTINGS__GEODATATOPICNAME: GEODATA
+      APPSETTINGS__BBRTOPICNAME: BBR
       APPSETTINGS__KAFKABOOTSTRAPSERVER: kafka0:29092
       APPSETTINGS__CONVERTSCRIPTFILENAME: datafordeleren/convert_script.sh
   
@@ -111,14 +116,10 @@ services:
       - Datafordeleren  
     environment:
       KAFKA__SERVER: kafka0:29092
-      KAFKA__DATAFORDELERETOPIC: DAR,GEODATA
+      KAFKA__DATAFORDELERETOPIC: BBR
       KAFKA__POSITIONFILEPATH: /tmp/
       DATABASE__DATABASEKIND: MSSQL
-      DATABASE__VALUES__HusnummerList: id_lokalId,status,houseNumberText,accessAddressDescription,position
-      DATABASE__VALUES__NavngivenVejList: id_lokalId,roadName,roadRegistrationRoadLine
-      DATABASE__VALUES__trae: gml_id,id_lokalId,geo,type
-      DATABASE__VALUES__bygning: gml_id,id_lokalId,geo,type
-      DATABASE__VALUES__vejkant: gml_id,id_lokalId,geo,type
+      DATABASE__VALUES__GrundList: id_lokalId, status
       DATABASE__GEOSRID: 25832
       DATABASE__CONNECTIONSTRING: Host=postgres;Username=postgres;Password=postgres;Database=gis;
       

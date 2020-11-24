@@ -62,9 +62,11 @@ namespace Datafordeler.DBIntegrator.Consumer
 
                            foreach (var message in messages)
                            {
-                              
+                               
                                if (message.Body is JObject)
                                {
+                                  
+
                                    if (!_topicList.ContainsKey(topic))
                                    {
                                        _topicList.Add(topic, new List<JObject>());
@@ -74,7 +76,7 @@ namespace Datafordeler.DBIntegrator.Consumer
                                    {
                                        _topicList[topic].Add((JObject)message.Body);
                                    }
-                                   if (_topicList[topic].Count >= 10000)
+                                   if (_topicList[topic].Count >= 1000)
                                    {
                                        foreach (var obj in _databaseSetting.Values)
                                        {
@@ -86,7 +88,9 @@ namespace Datafordeler.DBIntegrator.Consumer
                                        _topicList[topic].Clear();
                                    }
                                }
+                               
                            }
+                           
                            foreach (var obj in _databaseSetting.Values)
                            {
                                var tableName = obj.Key;
@@ -94,6 +98,7 @@ namespace Datafordeler.DBIntegrator.Consumer
                                var batch = CheckObjectType(_topicList[topic], tableName);
                                await HandleMessages(batch, tableName, columns);
                            }
+                           
                            _topicList[topic].Clear();
                        }).Start();
 

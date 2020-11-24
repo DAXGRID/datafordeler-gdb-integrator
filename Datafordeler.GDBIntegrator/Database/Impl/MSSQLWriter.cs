@@ -284,7 +284,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                     {
                         mystringBuilder.Append(column + " varchar(900)" + ",");
                     }
-                    else if (column == "position" | column == "roadRegistrationRoadLine" | column == "geo")
+                    else if (column == "position" | column == "roadRegistrationRoadLine" | column == "geo"  | column == "byg404Koordinat" | column == "tek109Koordinat"  )
                     {
                         mystringBuilder.Append(column + " geometry " + ",");
                     }
