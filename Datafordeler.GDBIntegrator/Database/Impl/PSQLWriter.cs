@@ -38,17 +38,9 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 connection.Open();
                 createTemporaryTable(topic + "_temp", columns, connection);
                 createTable(topic, columns, connection);
-                if (columns.Contains("geo"))
-                {
-                    InsertTemporaryData(batch, topic + "_temp", columns, connection);
-                    InsertOnConflict(topic + "_temp", topic, columns, connection);
-                }
-                else
-                {
-                    //var objects = checkLatestDataDuplicates(batch);
-                    InsertTemporaryData(batch, topic + "_temp", columns, connection);
-                    InsertOnConflict(topic + "_temp", topic, columns, connection);
-                }
+
+                InsertTemporaryData(batch, topic + "_temp", columns, connection);
+                InsertOnConflict(topic + "_temp", topic, columns, connection);
 
             }
         }
@@ -59,7 +51,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
 
             foreach (var column in columns)
             {
-                if (column == "position" || column == "roadRegistrationRoadLine" || column == "geo" || column == "byg404Koordinat" || column == "tek109Koordinat" )
+                if (column == "position" || column == "roadRegistrationRoadLine" || column == "geo" || column == "byg404Koordinat" || column == "tek109Koordinat")
                 {
                     tableColumns.Append(column + " geometry" + ",");
                 }
@@ -139,7 +131,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                     writer.StartRow();
                     foreach (var column in columns)
                     {
-                        if (column == "position" || column == "roadRegistrationRoadLine" || column == "geo" || column == "byg404Koordinat" || column == "tek109Koordinat" ) 
+                        if (column == "position" || column == "roadRegistrationRoadLine" || column == "geo" || column == "byg404Koordinat" || column == "tek109Koordinat")
                         {
                             // TODO add environment variable
                             rdr.DefaultSRID = _databaseSetting.GeoSRID;
@@ -175,7 +167,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             foreach (var column in columns)
             {
 
-                if (column == "position" || column == "roadRegistrationRoadLine" || column == "geo" || column == "byg404Koordinat" || column == "tek109Koordinat" )
+                if (column == "position" || column == "roadRegistrationRoadLine" || column == "geo" || column == "byg404Koordinat" || column == "tek109Koordinat")
                 {
                     tableColumns.Append(column + " geometry" + ",");
                 }
