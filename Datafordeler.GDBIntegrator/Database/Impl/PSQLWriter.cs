@@ -40,13 +40,13 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 createTable(topic, columns, connection);
                 if (columns.Contains("geo"))
                 {
-                    UpsertData(batch, topic + "_temp", columns, connection);
+                    InsertDataTemporary(batch, topic + "_temp", columns, connection);
                     InsertOnConflict(topic + "_temp", topic, columns, connection);
                 }
                 else
                 {
                     //var objects = checkLatestDataDuplicates(batch);
-                    UpsertData(batch, topic + "_temp", columns, connection);
+                    InsertDataTemporary(batch, topic + "_temp", columns, connection);
                     InsertOnConflict(topic + "_temp", topic, columns, connection);
                 }
 
@@ -116,7 +116,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 command.ExecuteNonQuery();
             }
         }
-        private void UpsertData(List<JObject> batch, string topic, string[] columns, NpgsqlConnection conn)
+        private void InsertDataTemporary(List<JObject> batch, string topic, string[] columns, NpgsqlConnection conn)
         {
             var tableColumns = new StringBuilder();
             var geometryFactory = new GeometryFactory();

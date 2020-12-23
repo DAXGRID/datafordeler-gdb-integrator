@@ -78,8 +78,8 @@ services:
       APPSETTINGS__MINY: 6182387
       APPSETTINGS__MAXY: 6199152
       APPSETTINGS__FTPSERVER: ftp3.datafordeler.dk
-      APPSETTINGS__ADRESSUSERNAME: 
-      APPSETTINGS__ADRESSPASSWORD: 
+      APPSETTINGS__ADRESSUSERNAME: EPGNXLMNRN
+      APPSETTINGS__ADRESSPASSWORD: rftQ8C5ZjnuDf4G!
       APPSETTINGS__GEOUSERNAME: 
       APPSETTINGS__GEOPASSWORD: 
       APPSETTINGS__BBRUSERNAME: DUDKCVTSEM
@@ -106,8 +106,8 @@ services:
       - WAL_LEVEL=logical
     volumes:
       - .:/postgres_open_ftth
-  
-      
+
+ 
   DatafordelerenConsumer:
     image: datafordelerenconsumer
     depends_on:
@@ -116,10 +116,14 @@ services:
       - Datafordeleren  
     environment:
       KAFKA__SERVER: kafka0:29092
-      KAFKA__DATAFORDELERETOPIC: BBR
+      KAFKA__DATAFORDELERETOPIC: DAR,BBR
       KAFKA__POSITIONFILEPATH: /tmp/
       DATABASE__DATABASEKIND: MSSQL
-      DATABASE__VALUES__GrundList: id_lokalId, status
+      DATABASE__VALUES__HusnummerList: id_lokalId,status,houseNumberText,accessAddressDescription,position
+      DATABASE__VALUES__NavngivenVejList: id_lokalId,roadName,roadRegistrationRoadLine
+      DATABASE__VALUES__GrundList: id_lokalId,status
+      DATABASE__VALUES__BygningList: id_lokalId,byg404Koordinat
+      DATABASE__VALUES__TekniskAnlægList: id_lokalId,tek109Koordinat 
       DATABASE__GEOSRID: 25832
       DATABASE__CONNECTIONSTRING: Host=postgres;Username=postgres;Password=postgres;Database=gis;
       

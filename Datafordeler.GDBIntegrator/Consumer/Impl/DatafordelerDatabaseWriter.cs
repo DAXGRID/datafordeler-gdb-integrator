@@ -65,8 +65,7 @@ namespace Datafordeler.DBIntegrator.Consumer
                                
                                if (message.Body is JObject)
                                {
-                                  
-
+                                
                                    if (!_topicList.ContainsKey(topic))
                                    {
                                        _topicList.Add(topic, new List<JObject>());
@@ -76,7 +75,7 @@ namespace Datafordeler.DBIntegrator.Consumer
                                    {
                                        _topicList[topic].Add((JObject)message.Body);
                                    }
-                                   if (_topicList[topic].Count >= 1000)
+                                   if (_topicList[topic].Count >= 10000)
                                    {
                                        foreach (var obj in _databaseSetting.Values)
                                        {
