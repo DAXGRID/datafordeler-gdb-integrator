@@ -35,8 +35,8 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
         {
             using (NpgsqlConnection connection = new NpgsqlConnection(_databaseSetting.ConnectionString))
             {
-                
-
+                // Add serial id for maping purposes
+                columns.Add("gid");
                 connection.Open();
                 createTemporaryTable(topic + "_temp", columns, connection);
                 createTable(topic, columns, connection);
@@ -61,9 +61,9 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 {
                     tableColumns.Append(column + " integer" + ",");
                 }
-                else if(column == "gid")
+                else if (column == "gid")
                 {
-                     tableColumns.Append(column + " serial" + ",");
+                    tableColumns.Append(column + " serial" + ",");
                 }
                 else
                 {
@@ -120,6 +120,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
         }
         private void InsertTemporaryData(List<JObject> batch, string topic, List<string> columns, NpgsqlConnection conn)
         {
+            var i = 0;
             var tableColumns = new StringBuilder();
             var geometryFactory = new GeometryFactory();
             var rdr = new WKTReader(geometryFactory);
@@ -137,10 +138,12 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             using (var writer = conn.BeginBinaryImport(comand))
             {
                 foreach (var document in batch)
-                {
+                {  
+                    i++;
                     writer.StartRow();
                     foreach (var column in columns)
                     {
+
                         if (column == "position" || column == "roadRegistrationRoadLine" || column == "geo" || column == "byg404Koordinat" || column == "tek109Koordinat")
                         {
                             // TODO add environment variable
@@ -156,7 +159,10 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                             }
 
                             writer.Write((int)document[column]);
-
+                        }
+                        else if (column == "gid")
+                        {
+                            writer.Write(i);
                         }
                         else
                         {
