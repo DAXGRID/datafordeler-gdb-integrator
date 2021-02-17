@@ -31,10 +31,12 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             NpgsqlConnection.GlobalTypeMapper.UseNetTopologySuite();
         }
 
-        public void AddToPSQL(List<JObject> batch, string topic, string[] columns)
+        public void AddToPSQL(List<JObject> batch, string topic, List<string> columns)
         {
             using (NpgsqlConnection connection = new NpgsqlConnection(_databaseSetting.ConnectionString))
             {
+                
+
                 connection.Open();
                 createTemporaryTable(topic + "_temp", columns, connection);
                 createTable(topic, columns, connection);
@@ -45,7 +47,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             }
         }
 
-        private void createTemporaryTable(string topic, string[] columns, NpgsqlConnection connection)
+        private void createTemporaryTable(string topic, List<string> columns, NpgsqlConnection connection)
         {
             var tableColumns = new StringBuilder();
 
@@ -58,6 +60,10 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 else if (column == "population")
                 {
                     tableColumns.Append(column + " integer" + ",");
+                }
+                else if(column == "gid")
+                {
+                     tableColumns.Append(column + " serial" + ",");
                 }
                 else
                 {
@@ -81,7 +87,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             _logger.LogInformation("Temporary Table " + topic + " created");
         }
 
-        private void InsertOnConflict(string tempTable, string table, string[] columns, NpgsqlConnection conn)
+        private void InsertOnConflict(string tempTable, string table, List<string> columns, NpgsqlConnection conn)
         {
             string id;
             var tempColumns = new StringBuilder();
@@ -112,7 +118,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 command.ExecuteNonQuery();
             }
         }
-        private void InsertTemporaryData(List<JObject> batch, string topic, string[] columns, NpgsqlConnection conn)
+        private void InsertTemporaryData(List<JObject> batch, string topic, List<string> columns, NpgsqlConnection conn)
         {
             var tableColumns = new StringBuilder();
             var geometryFactory = new GeometryFactory();
@@ -164,7 +170,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
             }
         }
 
-        private void createTable(string topic, string[] columns, NpgsqlConnection connection)
+        private void createTable(string topic, List<string> columns, NpgsqlConnection connection)
         {
             var tableColumns = new StringBuilder();
             string id;
@@ -188,6 +194,10 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 else if (column == "population")
                 {
                     tableColumns.Append(column + " integer" + ",");
+                }
+                else if (column == "gid")
+                {
+                    tableColumns.Append(column + " serial" + ",");
                 }
                 else
                 {

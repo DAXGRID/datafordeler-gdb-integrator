@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json.Linq;
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Topos.Config;
@@ -80,7 +81,7 @@ namespace Datafordeler.DBIntegrator.Consumer
                                        foreach (var obj in _databaseSetting.Values)
                                        {
                                            var tableName = obj.Key;
-                                           var columns = obj.Value.Split(",");
+                                           var columns = obj.Value.Split(",").ToList();
                                            var batch = CheckObjectType(_topicList[topic], tableName);
                                            await HandleMessages(batch, tableName, columns);
                                        }
@@ -93,7 +94,7 @@ namespace Datafordeler.DBIntegrator.Consumer
                            foreach (var obj in _databaseSetting.Values)
                            {
                                var tableName = obj.Key;
-                               var columns = obj.Value.Split(",");
+                               var columns = obj.Value.Split(",").ToList();
                                var batch = CheckObjectType(_topicList[topic], tableName);
                                await HandleMessages(batch, tableName, columns);
                            }
@@ -107,7 +108,7 @@ namespace Datafordeler.DBIntegrator.Consumer
         }
 
 
-        private async Task HandleMessages(List<JObject> list, string topic, string[] columns)
+        private async Task HandleMessages(List<JObject> list, string topic, List<string> columns)
         {
             _postgresWriter.AddToPSQL(list, topic, columns);
 
