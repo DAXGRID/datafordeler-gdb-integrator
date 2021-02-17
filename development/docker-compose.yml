@@ -80,50 +80,37 @@ services:
       APPSETTINGS__FTPSERVER: ftp3.datafordeler.dk
       APPSETTINGS__ADRESSUSERNAME: EPGNXLMNRN
       APPSETTINGS__ADRESSPASSWORD: rftQ8C5ZjnuDf4G!
-      APPSETTINGS__GEOUSERNAME: 
-      APPSETTINGS__GEOPASSWORD: 
-      APPSETTINGS__BBRUSERNAME: DUDKCVTSEM
-      APPSETTINGS__BBRPASSWORD: Gt5fRbdKDBxhjxx!
+      APPSETTINGS__GEOUSERNAME: PCVZLGPTJE
+      APPSETTINGS__GEOPASSWORD: sWRbn2M8y2tH!
+      APPSETTINGS__BBRUSERNAME: 
+      APPSETTINGS__BBRPASSWORD: 
       APPSETTINGS__BBRUNZIPPATH: datafordeleren/bbr
       APPSETTINGS__BBRPROCESSEDPATH: datafordeleren/newbbr
       APPSETTINGS__GEOUNZIPPATH: datafordeleren/geo
       APPSETTINGS__GEOGMLPATH: datafordeleren/geo/geogml
       APPSETTINGS__GEOPROCESSEDPATH: datafordeleren/newgeo
-      APPSETTINGS__GEOFIELDLIST: trae
+      APPSETTINGS__GEOFIELDLIST: vejkant
       APPSETTINGS__ADRESSTOPICNAME: DAR
       APPSETTINGS__GEODATATOPICNAME: GEODATA
       APPSETTINGS__BBRTOPICNAME: BBR
       APPSETTINGS__KAFKABOOTSTRAPSERVER: kafka0:29092
       APPSETTINGS__CONVERTSCRIPTFILENAME: datafordeleren/convert_script.sh
   
-  postgres:
-    image: kartoza/postgis
-    ports:
-      - 5432:5432
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - WAL_LEVEL=logical
-    volumes:
-      - .:/postgres_open_ftth
 
  
   DatafordelerenConsumer:
     image: datafordelerenconsumer
     depends_on:
-      - postgres
       - kafka0
       - Datafordeleren  
     environment:
       KAFKA__SERVER: kafka0:29092
-      KAFKA__DATAFORDELERETOPIC: DAR,BBR
+      KAFKA__DATAFORDELERETOPIC: DAR,GEODATA
       KAFKA__POSITIONFILEPATH: /tmp/
-      DATABASE__DATABASEKIND: MSSQL
-      DATABASE__VALUES__HusnummerList: id_lokalId,status,houseNumberText,accessAddressDescription,position
+      DATABASE__DATABASEKIND: PSQL
+      DATABASE__VALUES__HusnummerList: id_lokalId,status,houseNumberText,accessAddressDescription,position,roadName
       DATABASE__VALUES__NavngivenVejList: id_lokalId,roadName,roadRegistrationRoadLine
-      DATABASE__VALUES__GrundList: id_lokalId,status
-      DATABASE__VALUES__BygningList: id_lokalId,byg404Koordinat
-      DATABASE__VALUES__TekniskAnlægList: id_lokalId,tek109Koordinat 
+      DATABASE__VALUES__vejkant: gml_id,id_lokalId,geo,type
       DATABASE__GEOSRID: 25832
-      DATABASE__CONNECTIONSTRING: Host=postgres;Username=postgres;Password=postgres;Database=gis;
+      DATABASE__CONNECTIONSTRING: Host=172.18.0.2:5432;Username=openmaptiles;Password=openmaptiles;Database=openmaptiles;
       

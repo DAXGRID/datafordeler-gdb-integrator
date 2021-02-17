@@ -55,6 +55,10 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 {
                     tableColumns.Append(column + " geometry" + ",");
                 }
+                else if (column == "population")
+                {
+                    tableColumns.Append(column + " integer" + ",");
+                }
                 else
                 {
                     tableColumns.Append(column + " varchar" + ",");
@@ -138,6 +142,16 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                             var c = rdr.Read((string)document[column]);
                             writer.Write(c);
                         }
+                        else if (column == "population")
+                        {
+                            if (document[column].Type == JTokenType.Null)
+                            {
+                                document[column] = 0;
+                            }
+
+                            writer.Write((int)document[column]);
+
+                        }
                         else
                         {
                             writer.Write((string)document[column]);
@@ -170,6 +184,10 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 if (column == "position" || column == "roadRegistrationRoadLine" || column == "geo" || column == "byg404Koordinat" || column == "tek109Koordinat")
                 {
                     tableColumns.Append(column + " geometry" + ",");
+                }
+                else if (column == "population")
+                {
+                    tableColumns.Append(column + " integer" + ",");
                 }
                 else
                 {
