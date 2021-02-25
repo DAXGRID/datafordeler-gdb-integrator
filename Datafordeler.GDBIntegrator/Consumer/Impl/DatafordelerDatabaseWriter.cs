@@ -63,10 +63,10 @@ namespace Datafordeler.DBIntegrator.Consumer
 
                            foreach (var message in messages)
                            {
-                               
+
                                if (message.Body is JObject)
                                {
-                                
+
                                    if (!_topicList.ContainsKey(topic))
                                    {
                                        _topicList.Add(topic, new List<JObject>());
@@ -76,31 +76,37 @@ namespace Datafordeler.DBIntegrator.Consumer
                                    {
                                        _topicList[topic].Add((JObject)message.Body);
                                    }
-                                   if (_topicList[topic].Count >= 10000)
-                                   {
-                                       foreach (var obj in _databaseSetting.Values)
-                                       {
-                                           var tableName = obj.Key;
-                                           var columns = obj.Value.Split(",").ToList();
-                                           var batch = CheckObjectType(_topicList[topic], tableName);
-                                           await HandleMessages(batch, tableName, columns);
-                                       }
-                                       _topicList[topic].Clear();
-                                   }
+
+
                                }
-                               
+
                            }
-                           
-                           foreach (var obj in _databaseSetting.Values)
+
+                           if (_topicList[topic].Count >= 100000)
                            {
-                               var tableName = obj.Key;
-                               var columns = obj.Value.Split(",").ToList();
-                               var batch = CheckObjectType(_topicList[topic], tableName);
-                               await HandleMessages(batch, tableName, columns);
+                               foreach (var obj in _databaseSetting.Values)
+                               {
+                                   var tableName = obj.Key;
+                                   var columns = obj.Value.Split(",").ToList();
+                                   var batch = CheckObjectType(_topicList[topic], tableName);
+                                   await HandleMessages(batch, tableName, columns);
+                               }
+                               _topicList[topic].Clear();
                            }
-                           
-                           _topicList[topic].Clear();
+
+                           //    foreach (var obj in _databaseSetting.Values)
+                           //    {
+                           //        var tableName = obj.Key;
+                           //        var columns = obj.Value.Split(",").ToList();
+                           //        var batch = CheckObjectType(_topicList[topic], tableName);
+                           //        await HandleMessages(batch, tableName, columns);
+                           //    }
+
+                           //    _topicList[topic].Clear();
                        }).Start();
+
+
+
 
                     _consumers.Add(consumer);
                 }

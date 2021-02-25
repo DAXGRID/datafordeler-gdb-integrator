@@ -63,6 +63,17 @@ services:
         done
         # So that the container doesn't shut down, sleep this thread
         sleep infinity
+  postgres:
+    image: kartoza/postgis
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - WAL_LEVEL=logical
+    volumes:
+      - .:/postgres_open_ftth
+  
   
   Datafordeleren:
     image: datafordeler-producer

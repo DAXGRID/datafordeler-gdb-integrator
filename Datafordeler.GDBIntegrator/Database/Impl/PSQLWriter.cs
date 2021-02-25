@@ -35,6 +35,8 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
         {
             using (NpgsqlConnection connection = new NpgsqlConnection(_databaseSetting.ConnectionString))
             {
+
+                
                 // Add serial id for maping purposes
                 columns.Add("gid");
                 connection.Open();
@@ -148,6 +150,12 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                         {
                             // TODO add environment variable
                             rdr.DefaultSRID = _databaseSetting.GeoSRID;
+
+                            if (document[column].Type == JTokenType.Null)
+                            {
+                                document[column] = "LINESTRING (0 0, 0 0)";
+                            }
+
                             var c = rdr.Read((string)document[column]);
                             writer.Write(c);
                         }
