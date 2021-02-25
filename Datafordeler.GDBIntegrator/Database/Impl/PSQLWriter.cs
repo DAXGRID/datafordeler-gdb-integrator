@@ -42,9 +42,11 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 connection.Open();
                 createTemporaryTable(topic + "_temp", columns, connection);
                 createTable(topic, columns, connection);
+                createSpatialIndex(topic,columns,connection);
 
                 InsertTemporaryData(batch, topic + "_temp", columns, connection);
                 InsertOnConflict(topic + "_temp", topic, columns, connection);
+               
 
             }
         }
@@ -86,7 +88,7 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 command.ExecuteNonQuery();
             }
 
-            _logger.LogInformation("Temporary Table " + topic + " created");
+            _logger.LogInformation(@$"Temporary Table {topic} created");
         }
 
         private void InsertOnConflict(string tempTable, string table, List<string> columns, NpgsqlConnection conn)
@@ -228,7 +230,37 @@ namespace Datafordeler.GDBIntegrator.Database.Impl
                 command.ExecuteNonQuery();
             }
 
-            _logger.LogInformation("Table " + topic + " created");
+            _logger.LogInformation(@$"Table {topic} created");
+        }
+
+        private void createSpatialIndex(string topic, List<string> columns, NpgsqlConnection connection)
+        {
+            var tableColumns = new StringBuilder();
+            string geoColumn;
+
+            if(columns.Contains("geo"))
+            {
+                geoColumn = "geo";
+            }
+            else if(columns.Contains("position"))
+            {
+                geoColumn = "position";
+            }
+            else 
+            {
+                geoColumn = "roadRegistrationRoadLine";
+            }
+
+            var tableCommandText = @$"Create index IF NOT EXISTS  {topic}_index ON {topic} USING GIST({geoColumn});";
+            _logger.LogInformation(tableCommandText);
+
+            using (NpgsqlCommand command = new NpgsqlCommand(tableCommandText, connection))
+            {
+                command.ExecuteNonQuery();
+            }
+
+            _logger.LogInformation(@$"{topic}_index created");
+
         }
 
         private List<JObject> checkLatestDataDuplicates(List<JObject> batch)
