@@ -122,6 +122,6 @@ services:
       DATABASE__VALUES__HusnummerList: id_lokalId,status,houseNumberText,accessAddressDescription,position,roadName
       DATABASE__VALUES__NavngivenVejList: id_lokalId,roadName,roadRegistrationRoadLine
       DATABASE__VALUES__vejkant: gml_id,id_lokalId,geo,type
-      DATABASE__GEOSRID: 25832
+      DATABASE__GEOSRID: 3857
       DATABASE__CONNECTIONSTRING: Host=172.18.0.2:5432;Username=openmaptiles;Password=openmaptiles;Database=openmaptiles;
       
