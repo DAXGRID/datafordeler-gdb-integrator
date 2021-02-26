@@ -46,11 +46,10 @@ namespace Datafordeler.DBIntegrator.Consumer
         {
             var list = new List<JObject>();
             var kafka = _kafkaSetting.DatafordelereTopic.Split(",");
-            var counter = 0;
-            var previousCount=0;
+            var lastBatchInsert = DateTime.UtcNow;
+
             if (kafka != null)
             {
-
                 foreach (var obj in kafka)
                 {
                     var topic = obj;
@@ -62,13 +61,10 @@ namespace Datafordeler.DBIntegrator.Consumer
                        .Positions(p => p.StoreInFileSystem(_kafkaSetting.PositionFilePath))
                        .Handle(async (messages, context, token) =>
                        {
-
                            foreach (var message in messages)
                            {
-
                                if (message.Body is JObject)
                                {
-
                                    if (!_topicList.ContainsKey(topic))
                                    {
                                        _topicList.Add(topic, new List<JObject>());
@@ -79,7 +75,9 @@ namespace Datafordeler.DBIntegrator.Consumer
                                        _topicList[topic].Add((JObject)message.Body);
                                    }
 
-                                   if (_topicList[topic].Count >= 100000)
+                                   // The time difference is there to check if we haven't received any new messages
+                                   // In less than xx time - then we should insert anyway to not miss any batches less than the count xxxxxx
+                                   if (_topicList[topic].Count >= 100000 || (lastBatchInsert - DateTime.UtcNow).Seconds > 30)
                                    {
                                        foreach (var obj in _databaseSetting.Values)
                                        {
@@ -89,44 +87,16 @@ namespace Datafordeler.DBIntegrator.Consumer
                                            await HandleMessages(batch, tableName, columns);
                                        }
                                        _topicList[topic].Clear();
+                                       lastBatchInsert = DateTime.UtcNow;
                                    }
-
-
                                }
-
                            }
-
-                           if (_topicList[topic].Count >= 100000)
-                           {
-                               foreach (var obj in _databaseSetting.Values)
-                               {
-                                   var tableName = obj.Key;
-                                   var columns = obj.Value.Split(",").ToList();
-                                   var batch = CheckObjectType(_topicList[topic], tableName);
-                                   await HandleMessages(batch, tableName, columns);
-                               }
-                               _topicList[topic].Clear();
-                           }
-
-                           //    foreach (var obj in _databaseSetting.Values)
-                           //    {
-                           //        var tableName = obj.Key;
-                           //        var columns = obj.Value.Split(",").ToList();
-                           //        var batch = CheckObjectType(_topicList[topic], tableName);
-                           //        await HandleMessages(batch, tableName, columns);
-                           //    }
-
-                           //    _topicList[topic].Clear();
                        }).Start();
-
-
-
 
                     _consumers.Add(consumer);
                 }
             }
         }
-
 
         private async Task HandleMessages(List<JObject> list, string topic, List<string> columns)
         {
