@@ -46,6 +46,8 @@ namespace Datafordeler.DBIntegrator.Consumer
         {
             var list = new List<JObject>();
             var kafka = _kafkaSetting.DatafordelereTopic.Split(",");
+            var counter = 0;
+            var previousCount=0;
             if (kafka != null)
             {
 
@@ -75,6 +77,18 @@ namespace Datafordeler.DBIntegrator.Consumer
                                    else
                                    {
                                        _topicList[topic].Add((JObject)message.Body);
+                                   }
+
+                                   if (_topicList[topic].Count >= 100000)
+                                   {
+                                       foreach (var obj in _databaseSetting.Values)
+                                       {
+                                           var tableName = obj.Key;
+                                           var columns = obj.Value.Split(",").ToList();
+                                           var batch = CheckObjectType(_topicList[topic], tableName);
+                                           await HandleMessages(batch, tableName, columns);
+                                       }
+                                       _topicList[topic].Clear();
                                    }
 
 
